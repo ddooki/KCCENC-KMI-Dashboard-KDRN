@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/",
-      "destination": "/선행지표_통합대시보드_배포용.html"
+      "destination": "/index.html"
     }
   ]
 }
