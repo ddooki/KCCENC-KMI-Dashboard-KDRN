@@ -59,22 +59,7 @@ const GONGJEONG = {
 
     /* ── 2.1 하도급 수행 리스크 발생률 (실데이터) ── */
     "2-1": [
-      { type:"metrics", accent:"miss", title:"하도급 수행 리스크 발생률", sub:"2025년 자재/외주 협력업체 정기평가 등급 및 부실위험 비율 모니터링", hasOutTab:true, badge:{lv:"danger",txt:"경보"},
-        boxes:[
-          {lbl:"평가 대상 업체 수", val:"260개사"},
-          {lbl:"D·E등급 위험업체", val:"9개사 (3.5%)", cls:"danger"},
-          {lbl:"D등급 (경고 대상)", val:"7개사 (2.7%)", cls:"warn"},
-          {lbl:"E등급 (등록제외)", val:"2개사 (0.8%)", cls:"danger"},
-        ],
-        msg:{lv:"danger", txt:"<strong>[센서 경보]</strong> 2025년 정기평가 260개사 중 D등급 7개사(2.7%), E등급 2개사(0.8%) 발생 — 부실·납기지연 위험업체 발주 제한 및 대체업체 확보 필요."},
-        chart:{kind:"line", maxY:15, labels:["2021년","2022년","2023년","2024년","2025년"],
-          series:[
-            {data:[8,8,8,8,8], color:"#7e93ab", dash:"5,5"},
-            {data:[9.7,7.7,9.9,9.3,3.5], color:"#ff6969", dots:true, width:3, vlab:true, lab:["9.7%","7.7%","9.9%","9.3%","3.5%"]},
-          ],
-          legend:[{c:"#7e93ab",t:"╌╌ 5개년 평균치(8%)"},{c:"#ff6969",t:"━━ 리스크 발생률(D·E등급 비율)"}]},
-      },
-      { type:"list", accent:"miss", title:"하도급 리스크 발생 현황", sub:"협력사 타절 현황 및 2025년 정기평가 D·E등급 부실위험/경고 대상 업체 모니터링", badge:{lv:"danger",txt:"상위 10건"},
+      { type:"list", accent:"miss", title:"하도급 리스크 발생 현황", sub:"현장 수행 중 발생하는 납기지연·하자·클레임·계약불이행 등 주요 이슈를 상시 모니터링", badge:{lv:"danger",txt:"상위 10건"},
         items:[
           {st:"fail", name:"안성당목리물류센터 (전기공사) — 일렉파워(주) 회생절차 개시신청, 타절 후 직영공사 전환 (잔여 42.8억)", amt:"직영전환", cls:"red"},
           {st:"fail", name:"평택 사무3동 신축 (조적미장) — (주)영진미방 견적오류 공사포기, 타절 후 신규업체 재선정 발주 중 (25.18억)", amt:"재선정중", cls:"red"},
@@ -88,6 +73,21 @@ const GONGJEONG = {
           {st:"warn", name:"(주)삼화에이스 (설비자재 · 공조기外) — 25년 D등급 (68.0점) | 안전 및 보건 수칙 미준수", amt:"경고대상", cls:"amber"},
         ],
         note:"* 타절/직영전환 5건 + 2025년 정기평가 부실위험 E등급(등록제외 2개사) 및 D등급 상위 3개사 표출",
+      },
+      { type:"metrics", accent:"miss", title:"하도급 수행 리스크 발생률", sub:"진행 중인 하도급 업체의 수행 이슈 발생 비율을 집계하여 위험업체 조기 분류", hasOutTab:true, badge:{lv:"danger",txt:"경보"},
+        boxes:[
+          {lbl:"평가 대상 업체 수", val:"260개사"},
+          {lbl:"D·E등급 위험업체", val:"9개사 (3.5%)", cls:"danger"},
+          {lbl:"D등급 (경고 대상)", val:"7개사 (2.7%)", cls:"warn"},
+          {lbl:"E등급 (등록제외)", val:"2개사 (0.8%)", cls:"danger"},
+        ],
+        msg:{lv:"danger", txt:"<strong>[센서 경보]</strong> 당월 수행업체 260개사 중 리스크 발생업체 9개사(3.5%) 확인 → 반복·중대 이슈 업체는 위험업체로 분류하고, 대체업체 검토 및 신규 발주 제한 필요"},
+        chart:{kind:"line", maxY:15, labels:["2021년","2022년","2023년","2024년","2025년"],
+          series:[
+            {data:[8,8,8,8,8], color:"#7e93ab", dash:"5,5"},
+            {data:[9.7,7.7,9.9,9.3,3.5], color:"#ff6969", dots:true, width:3, vlab:true, lab:["9.7%","7.7%","9.9%","9.3%","3.5%"]},
+          ],
+          legend:[{c:"#7e93ab",t:"╌╌ 5개년 평균치(8%)"},{c:"#ff6969",t:"━━ 리스크 발생률(D·E등급 비율)"}]},
       },
     ],
 
