@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>선행지표 기반 경영 시스템 — 통합 대시보드</title>
+<style>
+  :root {
+    --bg:#35423e; --card:#404f4a; --deep:#2b3733; --text:#f0f4f2; --sub:#aab9b1; --border:#55665e;
+    --plan:#7e93ab; --actual:#8cb269; --miss:#ff6969; --amber:#ffad42;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',sans-serif; background:var(--bg); color:var(--text); margin:0; min-height:100vh; overflow-x:hidden; }
+
+  /* ── 최상단 허브 헤더 ── */
+  .hub-header { background:linear-gradient(180deg,#0d2523,#35423e); padding:22px 40px 0; border-bottom:1px solid var(--border); }
+  .hub-title { font-size:24px; font-weight:800; color:var(--amber); letter-spacing:-0.5px; }
+  .hub-title span { color:var(--sub); font-size:14px; font-weight:500; margin-left:12px; }
+  /* 5개 대분류 최상위 탭 */
+  .maintabs { display:flex; gap:12px; margin-top:20px; }
+  .maintab { flex:1; text-align:center; padding:16px 10px 18px; border-radius:12px 12px 0 0; background:var(--card); border:1px solid var(--border); border-bottom:none; cursor:pointer; transition:all .16s; position:relative; }
+  .maintab:hover { background:#1b3a37; }
+  .maintab.active { background:var(--amber); }
+  .maintab.active .mt-no, .maintab.active .mt-name { color:#241c0c; }
+  .mt-no { font-size:12px; color:var(--sub); font-weight:700; letter-spacing:1px; }
+  .mt-name { font-size:19px; font-weight:800; margin-top:3px; color:var(--text); }
+  .mt-dot { position:absolute; top:12px; right:14px; width:9px; height:9px; border-radius:50%; }
+  .dot-ok{background:var(--actual);} .dot-warn{background:var(--amber);} .dot-danger{background:var(--miss); animation:blink 1.6s infinite;}
+  @keyframes blink { 50%{opacity:.4;} }
+
+  /* ── 대시보드 프레임 영역 ── */
+  .stage { min-height:calc(100vh - 130px); }
+  iframe.dash { width:100%; height:calc(100vh - 118px); border:none; display:block; }
+
+  /* ── 범용 렌더 대시보드 (공정 등) ── */
+  .dv { display:none; }
+  .dv.on { display:block; animation:fade .25s; }
+  @keyframes fade { from{opacity:0;transform:translateY(6px);} to{opacity:1;transform:none;} }
+  .sub-head { display:flex; justify-content:space-between; align-items:center; padding:16px 36px 0; }
+  .sub-h-title { font-size:15px; color:var(--sub); font-weight:600; }
+  .sub-tabs { display:flex; gap:10px; padding:14px 36px 0; }
+  .sub-tab { padding:11px 26px; border-radius:9px; background:var(--deep); border:1px solid var(--border); font-size:15px; font-weight:700; color:var(--sub); cursor:pointer; transition:all .15s; }
+  .sub-tab:hover { color:var(--text); border-color:var(--sub); }
+  .sub-tab.active { background:var(--amber); color:#241c0c; border-color:var(--amber); }
+  /* ── 담당 부서 바 ── */
+  /* ── 화면 내 부문 전환 탭 ── */
+  .sector-tabs { display:flex; gap:8px; margin:0 0 16px; }
+  .sec-tab { background:var(--deep); border:1px solid var(--border); color:var(--sub);
+    padding:9px 26px; border-radius:9px; font-size:14.5px; font-weight:800; cursor:pointer; transition:.15s; }
+  .sec-tab:hover { border-color:var(--amber); }
+  .sec-tab.on { background:var(--amber); border-color:var(--amber); color:#241c0c; }
+  .sector-empty { background:var(--card); border:1px dashed var(--border); border-radius:14px;
+    padding:70px 30px; text-align:center; }
+  .se-ico { font-size:40px; margin-bottom:14px; }
+  .se-t1 { font-size:19px; font-weight:800; color:var(--text); margin-bottom:9px; }
+  .se-t2 { font-size:13.5px; color:var(--sub); line-height:1.7; }
+  .embed-frame { width:100%; height:1500px; border:none; border-radius:10px; background:var(--deep); margin-top:6px; }
+  .dept-bar { display:flex; align-items:center; gap:9px; padding:14px 36px 0; flex-wrap:wrap; }
+  .dept-lbl { font-size:12px; color:var(--sub); font-weight:800; letter-spacing:0.5px; }
+  .dept-main { background:var(--amber); color:#241c0c; padding:7px 15px; border-radius:8px; font-size:14.5px; font-weight:800; }
+  .dept-sup { background:var(--deep); border:1px solid var(--border); color:var(--text); padding:7px 13px; border-radius:8px; font-size:13.5px; font-weight:700; }
+  .dept-sep { width:1px; height:20px; background:var(--border); margin:0 5px; }
+  .content { padding:20px 36px 40px; }
+  .screen { display:none; }
+  .screen.on { display:block; animation:fade .25s; }
+  .panel-grid { display:flex; flex-wrap:wrap; gap:22px; align-items:stretch; }
+  .panel { flex:1 1 46%; min-width:430px; background:var(--card); border-radius:16px; padding:24px; border:1px solid var(--border); box-shadow:0 10px 25px rgba(0,0,0,0.3); display:flex; flex-direction:column; }
+  .panel-head { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:16px; }
+  .p-title { font-size:21px; font-weight:800; }
+  .p-sub { color:var(--sub); font-size:13px; margin-top:5px; }
+  .badge { padding:7px 14px; border-radius:8px; font-weight:800; font-size:14px; white-space:nowrap; }
+  .st-ok{background:rgba(140,178,105,0.15);color:#a8d480;border:1px solid var(--actual);}
+  .st-warn{background:rgba(255,173,66,0.13);color:#ffd08f;border:1px solid var(--amber);}
+  .st-danger{background:rgba(255,105,105,0.15);color:#ffb3ad;border:1px solid var(--miss);animation:blink 1.6s infinite;}
+  .num-dashboard { display:grid; grid-template-columns:repeat(4,1fr); gap:11px; margin-bottom:14px; }
+  .num-box { background:var(--bg); border:1px solid var(--border); padding:14px 6px; border-radius:10px; text-align:center; }
+  .num-lbl { font-size:12px; color:var(--sub); font-weight:700; margin-bottom:6px; word-break:keep-all; }
+  .num-val { font-size:20px; font-weight:800; }
+  .num-box.ok{border-color:rgba(140,178,105,0.5);background:rgba(140,178,105,0.05);} .num-box.ok .num-val{color:#a8d480;}
+  .num-box.warn{border-color:rgba(255,173,66,0.55);background:rgba(255,173,66,0.05);} .num-box.warn .num-val{color:#ffd08f;}
+  .num-box.danger{border-color:rgba(255,105,105,0.7);background:rgba(255,105,105,0.08);} .num-box.danger .num-val{color:#ff8f7a;}
+  .warning-msg { padding:13px 17px; border-radius:8px; font-size:14px; margin-bottom:14px; line-height:1.55; font-weight:600; }
+  .warning-msg.safe{background:rgba(140,178,105,0.1);border:1px solid var(--actual);color:#c9e0a8;}
+  .warning-msg.warn{background:rgba(255,173,66,0.09);border:1px solid var(--amber);color:#ffd9a3;}
+  .warning-msg.danger{background:rgba(255,105,105,0.13);border:2px solid var(--miss);color:#ffb3ad;}
+  .chart-container { flex-grow:1; min-height:240px; background:var(--deep); border-radius:12px; padding:16px; border:1px solid var(--border); }
+  .custom-legend { display:flex; justify-content:center; gap:18px; margin-bottom:10px; font-size:12.5px; font-weight:bold; flex-wrap:wrap; }
+  .svg-canvas { width:100%; height:calc(100% - 26px); min-height:190px; }
+  .tracker-box { background:var(--deep); border-radius:10px; padding:16px; border:1px solid var(--border); margin-bottom:14px; }
+  .tracker-title { font-size:13.5px; color:var(--sub); margin-bottom:12px; font-weight:700; }
+  .task-list { display:flex; flex-direction:column; gap:9px; }
+  .task-item { display:flex; align-items:center; gap:12px; font-size:14px; background:var(--card); padding:11px 16px; border-radius:8px; border-left:4px solid var(--sub); font-weight:500; justify-content:space-between; flex-wrap:wrap; }
+  .task-item .left { display:flex; align-items:center; gap:10px; }
+  .task-item.done{border-left-color:var(--actual);} .task-item.warn{border-left-color:var(--amber);background:rgba(255,173,66,0.06);} .task-item.fail{border-left-color:var(--miss);background:rgba(255,105,105,0.1);}
+  .icon-done{color:var(--actual);font-weight:bold;} .icon-warn{color:var(--amber);font-weight:bold;} .icon-fail{color:var(--miss);font-weight:bold;font-size:17px;}
+  .amt{font-weight:800;font-size:14px;} .amt.red{color:#ff8f7a;} .amt.green{color:#a8d480;} .amt.amber{color:#ffd08f;}
+  .note { font-size:11.5px; color:var(--sub); margin-top:14px; text-align:right; font-style:italic; }
+  /* 할인율 시나리오 버튼 */
+  .scn-row { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; align-items:center; }
+  .scn-lbl { font-size:13px; color:var(--sub); font-weight:700; margin-right:4px; width:100%; margin-bottom:2px; }
+  .scn-btn { padding:10px 22px; border-radius:10px; background:var(--deep); border:1.5px solid var(--border); font-size:15px; font-weight:800; color:var(--sub); cursor:pointer; transition:all .14s; }
+  .scn-btn:hover { color:var(--text); border-color:var(--amber); transform:translateY(-1px); }
+  .scn-btn.active { background:var(--amber); color:#241c0c; border-color:var(--amber); box-shadow:0 4px 12px rgba(255,173,66,0.3); }
+  /* 미분양 시뮬레이터 표 */
+  .sim-table { width:100%; border-collapse:collapse; margin-top:4px; font-size:13.5px; }
+  .sim-table th { background:var(--deep); color:var(--sub); font-weight:700; padding:10px 12px; text-align:right; border-bottom:1px solid var(--border); font-size:12.5px; }
+  .sim-table th:first-child { text-align:left; }
+  .sim-table td { padding:11px 12px; text-align:right; border-bottom:1px solid var(--border); font-weight:600; }
+  .sim-table td:first-child { text-align:left; font-weight:700; }
+  .sim-table tr:hover td { background:rgba(255,173,66,0.05); }
+  .sim-table .loss-cell { color:#ff8f7a; font-weight:800; font-size:15px; }
+  /* 손실 가로 막대 (표 안) */
+  .sim-table td.loss-bar-cell { padding:0; position:relative; min-width:200px; }
+  .loss-bar-wrap { display:flex; align-items:center; gap:10px; padding:8px 12px; }
+  .loss-bar-track { flex:1; height:22px; background:var(--bg); border-radius:5px; overflow:hidden; position:relative; border:1px solid var(--border); }
+  .loss-bar-fill { height:100%; background:linear-gradient(90deg, #ff6969, #ff8f7a); border-radius:4px; transition:width .35s ease; }
+  .loss-bar-val { color:#ff8f7a; font-weight:800; font-size:15px; white-space:nowrap; min-width:56px; text-align:right; }
+  .sim-table .sum-row .loss-bar-fill { background:linear-gradient(90deg, #ffad42, #ffd08f); }
+  .sim-table .sum-row .loss-bar-val { color:#ffd08f; }
+  .sim-table .sum-row td { background:rgba(255,105,105,0.09); border-top:2px solid var(--miss); border-bottom:none; font-size:15px; font-weight:800; padding:14px 12px; }
+  .sim-table .sum-row td:first-child { color:var(--amber); }
+  .sim-table .sum-row .loss-cell { font-size:18px; }
+  .sim-rate-badge { display:inline-block; background:rgba(255,173,66,0.15); color:#ffd08f; padding:2px 8px; border-radius:5px; font-size:11px; font-weight:700; margin-left:6px; }
+  .placeholder { text-align:center; padding:120px 20px; color:var(--sub); }
+  .placeholder .big { font-size:22px; font-weight:800; color:var(--text); margin-bottom:10px; }
+  @media (max-width:980px){ .panel{min-width:100%;} .maintabs{flex-wrap:wrap;} .maintab{flex:1 1 30%;} .content,.sub-tabs,.sub-head{padding-left:16px;padding-right:16px;} .num-dashboard{grid-template-columns:repeat(2,1fr);} }
+  .def-callout{display:flex;align-items:center;gap:12px;background:rgba(255,173,66,0.09);border:1px solid rgba(255,173,66,0.4);border-left:4px solid var(--amber);border-radius:10px;padding:13px 18px;margin-bottom:16px;font-size:14px;font-weight:600;color:#ffd9a3;line-height:1.5;}
+  .def-callout .tag{font-size:11px;font-weight:800;color:#241c0c;background:var(--amber);padding:4px 10px;border-radius:6px;white-space:nowrap;letter-spacing:.5px;}
+
+
+
+
+
+  /* ── 종합 상황판 ── */
+  .sit{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:13px;align-items:stretch;}
+  .sit-col{display:flex;flex-direction:column;gap:13px;min-width:0;}
+  .sp{background:var(--card);border:1px solid var(--border);border-left:4px solid var(--border);border-radius:12px;padding:16px 17px;cursor:pointer;transition:background .12s;}
+  .sp:hover{background:#3a4843;} 
+  .sp.sig-danger{border-left-color:#ff6969;} .sp.sig-warn{border-left-color:#ffad42;} .sp.sig-ok{border-left-color:#8cb269;}
+  .sp-head{display:flex;align-items:center;gap:10px;}
+  .sp-dot{width:11px;height:11px;border-radius:50%;flex:none;}
+  .dot-ok{background:#8cb269;} .dot-warn{background:#ffad42;} .dot-danger{background:#ff6969;}
+  .sp-name{font-size:19px;font-weight:800;color:var(--text);}
+  .sp-sig{font-size:12px;font-weight:700;padding:2px 10px;border-radius:10px;background:var(--deep);}
+  .sp-sig.sig-danger{color:#ff9b9b;} .sp-sig.sig-warn{color:#ffc98a;} .sp-sig.sig-ok{color:#a8d17e;}
+  .sp-team{margin-left:auto;display:flex;gap:5px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
+  .sp-team .tl{font-style:normal;font-size:12.5px;color:var(--sub);font-weight:700;letter-spacing:.3px;}
+  .sp-team b{background:transparent;border:1.5px solid var(--amber);color:var(--amber);font-size:14px;font-weight:800;padding:4px 13px;border-radius:8px;}
+  .sp-team i{font-style:normal;border:1px solid var(--border);background:var(--deep);color:var(--sub);font-size:14px;font-weight:700;padding:4px 13px;border-radius:8px;}
+  .ii-team{margin-left:auto;display:inline-flex;gap:5px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
+  .ii-team .tl{font-style:normal;font-size:10.5px;color:var(--sub);font-weight:700;letter-spacing:.3px;}
+  .ii-team b{background:transparent;border:1px solid var(--amber);color:var(--amber);font-size:11px;font-weight:800;padding:2px 8px;border-radius:7px;}
+  .ii-team i{font-style:normal;border:1px solid var(--border);background:var(--deep);color:var(--sub);font-size:11px;font-weight:700;padding:2px 8px;border-radius:7px;}
+  .st-team{display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-top:5px;}
+  .st-team .tl{font-style:normal;font-size:10px;color:var(--sub);font-weight:700;}
+  .st-team b{background:transparent;border:1px solid var(--amber);color:var(--amber);font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:6px;}
+  .st-team i{font-style:normal;border:1px solid var(--border);background:var(--deep);color:var(--sub);font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:6px;}
+  .sp-sub{font-size:13.5px;color:var(--text);font-weight:700;margin:4px 0 12px;opacity:.85;}
+  .t2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:11px;}
+  .st{background:var(--deep);border:1px solid var(--border);border-radius:9px;padding:10px 13px;min-width:0;}
+  .st-l{font-size:12.5px;color:var(--sub);margin-bottom:4px;font-weight:600;}
+  .st-v{font-size:23px;font-weight:800;color:var(--text);line-height:1.1;}
+  .st-rr{font-size:14.5px;font-weight:800;margin-left:1px;}
+  .st-v.big{font-size:30px;} .st-u{font-size:13px;font-weight:700;color:var(--sub);margin-left:2px;}
+  .st-s{font-size:11.5px;color:var(--sub);margin-top:4px;line-height:1.35;}
+  .st-danger{border-color:#5a3232;background:#2f2121;} .st-danger .st-v{color:#ff9b9b;}
+  .st-wide{margin-bottom:10px;}
+  .tri{color:#ff6969;font-size:17px;margin-right:1px;}
+  .st-pending{opacity:.82;} .st-tag{font-size:10px;padding:1px 6px;border-radius:6px;background:#33413c;color:#93a29a;margin-left:4px;font-weight:700;}
+  .mlist{background:var(--deep);border-radius:9px;padding:12px 14px;}
+  .ml-h{font-size:13px;color:var(--text);margin-bottom:11px;font-weight:800;background:#243029;border-left:3px solid var(--amber);border-radius:0 7px 7px 0;padding:6px 12px;width:fit-content;}
+  .mrow{display:flex;align-items:center;gap:11px;margin-bottom:4px;}
+  .mr-n{font-size:14px;font-weight:800;color:var(--text);width:48px;flex:none;}
+  .mr-mid{flex:1;font-size:13px;color:var(--sub);font-weight:700;}
+  .mr-mid b{color:var(--text);}
+  .mr-v{font-size:14.5px;font-weight:800;text-align:right;flex:none;}
+  .mrow-bar{margin-bottom:10px;}
+  .tv-d{color:#ff9b9b;} .tv-o{color:#a8d17e;}
+  .pbar{height:9px;background:#243029;border-radius:5px;overflow:hidden;}
+  .pbar-f{height:100%;border-radius:5px;} .pf-danger{background:#ff6969;} .pf-ok{background:#8cb269;} .pf-amber{background:#ffad42;}
+  .bal-row{display:flex;align-items:center;gap:16px;margin-top:8px;padding-top:10px;border-top:1px solid var(--border);flex-wrap:wrap;}
+  .bal-h{font-size:12.5px;color:var(--sub);font-weight:700;}
+  .bal-i{font-size:14px;color:var(--text);font-weight:800;} .bal-i b{color:var(--sub);font-weight:700;font-size:12px;margin-right:4px;}
+  .gauge-wrap{background:var(--deep);border-radius:9px;padding:8px 12px 2px;}
+  .crow{background:var(--deep);border-radius:10px;padding:13px 15px;margin-bottom:11px;}
+  .crow:last-child{margin-bottom:0;}
+  .cr-head{display:flex;align-items:center;gap:9px;margin-bottom:11px;}
+  .cr-n{font-size:17px;font-weight:800;color:var(--text);}
+  .cr-site{font-size:12px;color:var(--sub);font-weight:600;margin-right:auto;}
+  .cr-ms{font-size:12px;font-weight:800;color:#ffc98a;background:#3a3320;padding:2px 9px;border-radius:8px;}
+  .cr-body{display:flex;gap:18px;align-items:center;}
+  .cr-rate{flex:none;display:flex;flex-direction:column;gap:3px;}
+  .cr-rl{font-size:14px;font-weight:800;color:var(--text);}
+  .cr-rv{font-size:24px;font-weight:800;color:#ffad42;line-height:1;}
+  .cr-right{flex:1;min-width:0;}
+  .cr-line{margin-bottom:6px;}
+  .cr-l{font-size:13px;color:var(--sub);font-weight:600;} .cr-l b{font-size:15px;font-weight:800;color:var(--text);}
+  .cr-su{font-size:13px;color:var(--sub);margin-top:6px;font-weight:600;}
+  .ii-h{font-size:14px;color:var(--text);font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .ii-h .ttl{background:#243029;border-left:3px solid var(--amber);border-radius:0 7px 7px 0;padding:5px 11px;}
+  .flowrow{background:var(--deep);border-radius:9px;padding:12px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:stretch;gap:12px;}
+  .fl-left,.fl-right{display:flex;flex-direction:column;justify-content:space-between;gap:9px;min-width:0;}
+  .fl-left{flex:1;}
+  .fl-right{align-items:flex-end;flex:none;}
+  .fr-cnts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
+  .fr-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .fr-n{font-size:16px;font-weight:800;color:var(--text);} .fr-site{font-size:12px;color:var(--sub);}
+  .cnt{font-size:12.5px;font-weight:800;padding:2px 9px;border-radius:7px;}
+  .cnt b{display:inline-block;min-width:1.5em;text-align:center;font-weight:800;}
+  .cnt-al{background:#4a2323;color:#ff9b9b;} .cnt-wn{background:#3a3320;color:#ffc98a;} .cnt-ok{background:#2b3a2b;color:#a8d17e;}
+  .fr-flow{display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+  .ff{font-size:16px;font-weight:800;} .ff.n1{color:#93a29a;} .ff.n2{color:#8fa4bd;} .ff.n3{color:#ffad42;}
+  .ff b{display:inline-block;min-width:3.2em;text-align:right;font-weight:800;}
+  .fr-flow i{color:var(--sub);font-style:normal;}
+  .ff-d{font-size:12.5px;font-weight:800;color:#ff9b9b;background:#3a2727;padding:2px 10px;border-radius:7px;}
+  .critbox{display:flex;align-items:center;gap:9px;flex-wrap:wrap;background:#2b3733;border:1px dashed var(--border);border-radius:9px;padding:11px 13px;}
+  .cb-t{font-size:13px;color:var(--text);font-weight:800;}
+  .cb{font-size:13px;font-weight:800;padding:3px 10px;border-radius:8px;}
+  .cb-al{background:#4a2323;color:#ff9b9b;} .cb-wn{background:#3a3320;color:#ffc98a;} .cb-ok{background:#2b3a2b;color:#a8d17e;}
+  .prod-lgd{display:flex;gap:13px;margin-bottom:7px;font-size:12px;flex-wrap:wrap;}
+  .lg-cost::before{content:"\25A0 ";color:#6b7a72;} .lg-est::before{content:"\25A0 ";color:#8cb269;} .lg-d::before{content:"\25A0 ";color:#ff6969;}
+  .lg-cost,.lg-est,.lg-d{color:var(--sub);font-weight:700;}
+  .prod-wrap{background:var(--deep);border-radius:9px;padding:12px 14px;margin-bottom:11px;}
+  .pd-row{display:flex;align-items:center;gap:11px;margin-bottom:11px;}
+  .pd-row:last-child{margin-bottom:0;}
+  .pd-n{font-size:14px;font-weight:800;color:var(--text);width:46px;flex:none;}
+  .pd-bars{flex:1;display:flex;flex-direction:column;gap:3px;min-width:0;}
+  .pd-line{display:flex;align-items:center;gap:7px;}
+  .pd-cost{height:11px;background:#6b7a72;border-radius:3px;display:inline-block;}
+  .pd-est{height:11px;background:#8cb269;border-radius:3px;display:inline-block;}
+  .pd-vc{font-size:12.5px;font-weight:800;color:#cdd8d2;} .pd-ve{font-size:12.5px;font-weight:800;color:#a8d17e;}
+  .pd-d{font-size:16px;font-weight:800;color:#ff9b9b;width:34px;text-align:right;flex:none;}
+  .note-sp{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;cursor:default;gap:9px;border-left-color:var(--amber)!important;}
+  .note-sp:hover{background:var(--card);}
+  .note-big{font-size:27px;font-weight:800;color:var(--text);}
+  .note-mid{font-size:15.5px;color:var(--sub);font-weight:700;} .note-mid b{color:var(--amber);}
+  .ft-lgd{display:flex;gap:16px;} .lg{font-size:13px;color:var(--sub);display:flex;align-items:center;gap:6px;font-weight:700;} .lg i{width:10px;height:10px;border-radius:50%;display:inline-block;}
+  .maintab{display:flex;flex-direction:column;justify-content:center;align-items:center;}
+  .note-banner{background:var(--card);border:1px solid var(--border);border-left:6px solid var(--amber);border-radius:12px;padding:24px 28px;margin-bottom:13px;display:flex;align-items:center;gap:22px;flex-wrap:wrap;}
+  .nb-spacer{flex:1;}
+  .nb-center{display:flex;flex-direction:column;gap:6px;align-items:center;text-align:center;}
+  .note-banner .ft-lgd{flex:1;justify-content:flex-end;}
+  .sit .sp{display:flex;flex-direction:column;min-width:0;}
+  .su-body{flex:1;display:flex;flex-direction:column;}
+  .su-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1;}
+  .su-card{background:var(--deep);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:12px;}
+  .su-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:1;}
+  .su-tiles{display:flex;flex-direction:column;gap:9px;flex:1;}
+  .su-tiles .jt{padding:12px 10px;flex:1;}
+  .su-tbl{width:100%;border-collapse:collapse;font-size:13px;}
+  .su-tbl th{color:var(--sub);font-weight:700;font-size:12px;padding:6px 9px;border-bottom:1px solid var(--border);text-align:right;}
+  .su-tbl th:first-child,.su-tbl td:first-child{text-align:left;width:58px;}
+  .su-tbl td.d{color:#ff8f7a;} .su-tbl td.p{color:#6fb3e8;}
+  .su-tbl td{padding:9px 9px;text-align:right;font-weight:700;border-bottom:1px solid rgba(122,138,131,0.22);}
+  .su-tbl tbody tr:last-child td{font-weight:800;border-top:1.5px solid var(--border);border-bottom:none;color:var(--text);}
+  .su-tbl tbody tr:last-child td.d{color:#ff8f7a;} .su-tbl tbody tr:last-child td.p{color:#6fb3e8;}
+  .ii-top{display:flex;gap:12px;align-items:stretch;margin:8px 0 2px;flex:1;min-height:0;}
+  .ii-top .slope-wrap{flex:1;margin:0;display:flex;align-items:stretch;min-width:0;}
+  .ii-tiles{flex:0 0 132px;display:flex;flex-direction:column;gap:10px;justify-content:space-evenly;}
+  .ii-tiles .jt{padding:11px 6px;gap:4px;}
+  .ii-tiles .jt-l{font-size:13px;} .ii-tiles .jt-v{font-size:22px;} .ii-tiles .jt-s{font-size:10.5px;}
+  .jt-s{font-size:11px;color:var(--sub);font-weight:700;}
+  .critline{display:flex;gap:12px;align-items:center;margin-top:11px;background:var(--deep);border-radius:7px;padding:10px 14px;flex-wrap:wrap;}
+  .br-wrap{margin-top:14px;}
+  .br-t{display:flex;justify-content:space-between;font-size:13.5px;color:var(--sub);font-weight:700;margin-bottom:8px;}
+  .br-bar{display:flex;height:44px;border-radius:9px;overflow:hidden;}
+  .br-av{background:#8cb269;color:#241c0c;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14.5px;white-space:nowrap;}
+  .br-net{background:#ff6969;color:#241c0c;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14.5px;white-space:nowrap;}
+  .pnums{display:flex;flex-direction:column;gap:9px;}
+  .pn{display:flex;align-items:baseline;gap:10px;}
+  .pn-l{font-size:13px;color:var(--sub);font-weight:700;width:64px;flex:none;}
+  .pn-v{font-size:20px;font-weight:800;color:var(--text);}
+  .pn.danger .pn-v{color:#ff8f7a;} .pn.danger .pn-l{color:#ffb3ad;}
+  .pn-s{font-size:11.5px;color:var(--sub);font-weight:700;margin-top:2px;}
+  .dn{display:flex;flex-direction:column;align-items:center;gap:6px;flex:none;}
+  .dn-l{font-size:13px;color:var(--sub);font-weight:700;}
+  .su-line{font-size:14px;color:var(--sub);font-weight:700;text-align:center;margin-top:12px;background:var(--deep);border-radius:8px;padding:11px 10px;} .su-line b{color:var(--text);font-size:15px;}
+  .jt-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-top:12px;}
+  .wf-wrap{flex:1;min-height:0;max-height:225px;background:var(--deep);border-radius:10px;margin-top:auto;padding:8px 12px;display:flex;align-items:center;justify-content:center;}
+  .jt{background:var(--bg);border:1px solid var(--border);border-radius:10px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px;padding:18px 8px;text-align:center;}
+  .jt-l{font-size:14.5px;color:var(--sub);font-weight:700;word-break:keep-all;line-height:1.3;}
+  .jt-v{font-size:24px;font-weight:800;}
+  .jt.ok{border-color:rgba(140,178,105,0.5);background:rgba(140,178,105,0.05);} .jt.ok .jt-v{color:#a8d480;}
+  .jt.warn{border-color:rgba(255,173,66,0.55);background:rgba(255,173,66,0.05);} .jt.warn .jt-v{color:#ffd08f;}
+  .jt.danger{border-color:rgba(255,105,105,0.7);background:rgba(255,105,105,0.08);} .jt.danger .jt-v{color:#ff8f7a;}
+  .gb-wrap{flex:1;display:flex;flex-direction:column;gap:14px;}
+  .gb{background:var(--deep);border-radius:9px;padding:16px 18px;cursor:pointer;transition:background .12s;flex:1;display:flex;flex-direction:column;justify-content:space-evenly;}
+  .gb:hover{background:#243029;}
+  .gb-h{display:flex;align-items:center;gap:10px;} .gb-n{font-size:17px;font-weight:800;} .gb-site{font-size:13px;color:var(--sub);font-weight:700;flex:1;}
+  .gb-p{font-size:26px;font-weight:800;color:var(--amber);}
+  .gb-bar{height:36px;background:#243029;border-radius:7px;overflow:hidden;margin-top:9px;}
+  .gb-f{height:100%;background:linear-gradient(90deg,#e8934e,#ffad42);border-radius:7px;display:flex;align-items:center;min-width:fit-content;}
+  .gb-in{font-size:13.5px;font-weight:800;color:#241c0c;padding:0 12px;white-space:nowrap;}
+  .gb-su{font-size:13px;color:var(--sub);font-weight:700;margin-top:7px;}
+  .cstack{margin-top:12px;} .cs-lbls{display:flex;justify-content:space-between;font-size:13.5px;font-weight:800;margin-bottom:6px;}
+  .cs-a{color:#a8d480;} .cs-n{color:#ff8f7a;}
+  .cs-bar{display:flex;height:16px;border-radius:6px;overflow:hidden;}
+  .cs-av{background:#8cb269;} .cs-net{background:#ff6969;}
+  .slope-wrap{background:var(--deep);border-radius:9px;padding:8px 8px 0;margin:8px 0 2px;cursor:pointer;}
+  .sstack{display:flex;align-items:center;justify-content:flex-start;gap:16px;margin-top:10px;cursor:pointer;}
+  .ss-n{font-size:16px;font-weight:800;flex:none;} .ss-site{font-size:13px;color:var(--sub);font-weight:700;flex:none;}
+  .ss-bar{flex:0 0 58%;display:flex;height:26px;border-radius:6px;overflow:hidden;}
+  .ss-seg{display:flex;align-items:center;justify-content:center;overflow:hidden;} .ss-seg b{font-size:12.5px;font-weight:800;color:#241c0c;white-space:nowrap;}
+  .ss-seg.al{background:#ff6969;} .ss-seg.wn{background:#ffad42;} .ss-seg.ok{background:#8cb269;}
+  @media(max-width:1000px){.sit{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<div class="hub-header">
+  <div class="hub-title">선행지표 기반 경영 시스템 <span>| 조기감지 통합 대시보드</span></div>
+  <div class="maintabs" id="maintabs"></div>
+</div>
+
+<div class="stage">
+  <!-- 수주: 기존 완성 대시보드를 iframe으로 -->
+  <div class="dv on" id="stage-1"><div id="mount-summary"></div></div>
+  <div class="dv" id="stage-2"><iframe class="dash" id="iframe-수주" src="수주대시보드.html" title="수주"></iframe></div>
+  <!-- 공정: 범용 렌더 -->
+  <div class="dv" id="stage-3"><div id="mount-2"></div></div>
+  <div class="dv" id="stage-4"><div id="mount-4"></div></div>
+  <div class="dv" id="stage-5"><div id="mount-3"></div></div>
+</div>
+
+<script src="공정대시보드_data.js"></script>
+<script src="자금대시보드_data.js"></script>
+<script src="이익대시보드_data.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const BADGE = { ok:['st-ok','🟢'], warn:['st-warn','🟡'], danger:['st-danger','🚨'] };
+
+  /* ── 최상위 5대분류 탭 ── */
+  function worstDot(D){
+    if(!D||!D.대분류) return "ok";
+    const rank={ok:0,warn:1,danger:2}; let w="ok";
+    D.대분류.forEach(c=>{ if(rank[c.status.lv]>rank[w]) w=c.status.lv; });
+    return w;
+  }
+  /* ── 화면 뒤로가기(해시 라우팅) ── */
+  const TAB_BY_MOUNT={'mount-2':3,'mount-3':5,'mount-4':4};
+  const MOUNT_BY_TAB={3:'mount-2',4:'mount-4',5:'mount-3'};
+  function D_BY_TAB(t){ return t===3?GONGJEONG:(t===4?IIK:JAGEUM); }
+  let NAV_READY=false, NAV_APPLYING=false, CUR_NAV='';
+  function navHash(){ try{return decodeURIComponent((location.hash||'').replace(/^#/,''));}catch(e){return '';} }
+  function pushNav(s){ if(!NAV_READY||NAV_APPLYING||CUR_NAV===s) return; CUR_NAV=s; try{ location.hash=s; }catch(e){} }
+  function applyNav(){
+    const s=navHash(); if(!s||s===CUR_NAV) return;
+    const m=s.match(/^t(\d)(?:\/(\d-\d))?$/); if(!m) return;
+    CUR_NAV=s; NAV_APPLYING=true;
+    try{
+      const t=+m[1], sid=m[2];
+      selectMain(t);
+      if(sid && MOUNT_BY_TAB[t]){ const mo=MOUNT_BY_TAB[t], D=D_BY_TAB(t); selectGCat(mo,D,parseInt(sid.split('-')[0],10)); selectGScreen(mo,D,sid); }
+    } finally { NAV_APPLYING=false; }
+  }
+  window.addEventListener('hashchange', applyNav);
+
+  const MAIN = [
+    {no:"", name:"핵심지표 요약", dot:"warn"},   /* 핵심지표 요약 (기본 화면) */
+    {no:"01", name:"수주", dot:"danger"},   /* 수주는 iframe이라 수동 지정 */
+    {no:"02", name:"공정", dot:worstDot(typeof GONGJEONG!=='undefined'?GONGJEONG:null)},
+    {no:"03", name:"이익", dot:worstDot(typeof IIK!=='undefined'?IIK:null)},
+    {no:"04", name:"자금", dot:worstDot(typeof JAGEUM!=='undefined'?JAGEUM:null)},
+  ];
+  /* ══ 종합 상황판 데이터·렌더 ══ */
+  const SIT={
+    수주:{sig:"danger",tab:2,sub:"수주 실적 현황",
+      pairs:[
+        {p:64.5,c:"#7e93ab",l:"누계 달성률",
+         tiles:[{l:"연간계획",v:"27,579억"},{l:"누계 실적",v:"17,800억"}],s:"6월 시점계획 대비 89.4%",
+         tbl:{h:["구분","사업계획","실적","차이"],rows:[["인프라","6,500","2,680","▼3,820"],["건축","21,079","15,120","▼5,959"],["전체","27,579","17,800","▼9,779"]]}},
+        {p:89.0,c:"#ff6969",l:"연말추정 달성률",
+         tiles:[{l:"연말추정",v:"24,547억"},{l:"부족분",v:"▼3,032억",cls:"danger"}],s:"부족률 11.0%",
+         tbl:{h:["구분","사업계획","연말추정","차이"],rows:[["인프라","6,500","2,680","▼3,820"],["건축","21,079","21,867","+788"],["전체","27,579","24,547","▼3,032"]]}}]},
+    자금:{sig:"warn",tab:5,sub:"차입금 현황",
+      tiles:[
+        {l:"총차입금",v:"3,671억"},{l:"가용자금",v:"1,864억"},{l:"순현금",v:"▼1,807억",cls:"danger"},{l:"가중평균 조달금리",v:"4.7%",cls:"warn"}],
+      wf:{av:1864,tot:3671,net:1807,rate:"4.7%"}},
+    공정:{sig:"warn",tab:3,sub:"공정 진행 준수율",
+      subs:[{n:"인프라",site:"43개 현장",pct:45,gi:"2,007억",gp:"4,460억",su:"수금 누계 2,493억 (기성 대비 124%)",ms:"마일스톤 47건"},
+            {n:"건축",site:"56개 현장 · 건축 53 플랜트 3",pct:45.1,gi:"5,360억",gp:"11,897억",su:"수금 누계 4,918억 (기성 대비 91.7%)",ms:null}]},
+    이익:{sig:"warn",tab:4,sub:"목표 실행 달성율 · 부문별 실행율 현황",
+      flow:[{n:"인프라",site:"42개 현장",tu:102.1,sa:96.7,jun:96.6,al:15,wn:14,ok:13,c:"#e8934e"},
+            {n:"건축",site:"37개 현장",tu:94.5,sa:88.4,jun:87.9,al:0,wn:10,ok:27,c:"#8cb269"}]},
+  };
+  const SIGT={ok:"정상",warn:"주의",danger:"경보"};
+  const ph=(name,sig,tab,sub,team)=>`<div class="sp-head"><span class="sp-dot dot-${sig}"></span><span class="sp-name">${name}</span><span class="sp-sig sig-${sig}">${SIGT[sig]}</span>${team?`<span class="sp-team"><span class="tl">담당</span><b>${team.d}</b><span class="tl">지원</span><i>${team.s}</i></span>`:''}</div>${sub?`<div class="sp-sub">${sub}</div>`:''}`;
+  const tile=t=>`<div class="st ${t.cls?'st-'+t.cls:''}"><div class="st-l">${t.l}</div><div class="st-v">${t.tri?'<span class="tri">▼</span>':''}${t.v}<span class="st-u">${t.u||''}</span>${t.rl?`<span class="st-rr">, ${t.rl} ${t.rv}</span>`:''}</div>${t.s?`<div class="st-s">${t.s}</div>`:''}</div>`;
+  const pbar=(p,lv)=>`<div class="pbar"><div class="pbar-f pf-${lv}" style="width:${Math.min(p,100)}%"></div></div>`;
+
+  function gauge(g){const W=430,H=96,pL=14,pR=W-14,pW=pR-pL,max=40,x=v=>pL+(v/max)*pW,y=40,bh=17,bx=x(g.base);
+    let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="xMidYMid meet">`;
+    s+=`<text x="${pL}" y="16" fill="#f0f4f2" font-size="13.5" font-weight="800">순차입금의존도 <tspan fill="#aab9b1" font-size="11.5" font-weight="600">(순차입금 ÷ 총자산)</tspan></text>`;
+    s+=`<rect x="${pL}" y="${y}" width="${bx-pL}" height="${bh}" rx="4" fill="#8cb269" opacity=".28"/><rect x="${bx}" y="${y}" width="${pR-bx}" height="${bh}" rx="4" fill="#ff6969" opacity=".26"/>`;
+    s+=`<line x1="${bx}" y1="${y-8}" x2="${bx}" y2="${y+bh+5}" stroke="#ffad42" stroke-width="2.2" stroke-dasharray="5 3"/><text x="${bx}" y="${y-12}" fill="#ffad42" font-size="12.5" font-weight="800" text-anchor="middle">기준 30%</text>`;
+    const xg=x(g.gross),xn=x(g.net);
+    s+=`<line x1="${xg}" y1="${y+bh/2}" x2="${xn}" y2="${y+bh/2}" stroke="#8cb269" stroke-width="1.8" opacity=".6"/>`;
+    s+=`<circle cx="${xg}" cy="${y+bh/2}" r="5.5" fill="#2b3733" stroke="#e8934e" stroke-width="2.2"/><circle cx="${xn}" cy="${y+bh/2}" r="7" fill="#8cb269"/>`;
+    s+=`<text x="${xn}" y="${y+bh+21}" fill="#8cb269" font-size="13.5" font-weight="800" text-anchor="middle">순차입 기준 ${g.net}%</text>`;
+    s+=`<text x="${xg}" y="${y+bh+21}" fill="#e8934e" font-size="12.5" font-weight="700" text-anchor="middle">총차입 기준 ${g.gross}%</text>`;
+    return s+`</svg>`;}
+
+  function prodBars(rows){const mx=92;
+    return rows.map(r=>{const d=r.est-r.cost;
+      return `<div class="pd-row"><span class="pd-n">${r.n}</span>
+        <span class="pd-bars">
+          <span class="pd-line"><span class="pd-cost" style="width:${r.cost/mx*100}%"></span><b class="pd-vc">${r.cost}</b></span>
+          <span class="pd-line"><span class="pd-est" style="width:${r.est/mx*100}%"></span><b class="pd-ve">${r.est}</b></span>
+        </span>
+        <span class="pd-d">${d<0?'▼'+Math.abs(d):'+'+d}</span></div>`;}).join('');}
+
+  function goDeep(ev, tab, mountId, D, cat, sid, sector){
+    if(ev) ev.stopPropagation();
+    NAV_APPLYING=true;
+    try{
+      selectMain(tab);
+      if(mountId && D){ selectGCat(mountId, D, cat); if(sid) selectGScreen(mountId, D, sid); }
+    } finally { NAV_APPLYING=false; }
+    let s='t'+tab, fsid=null;
+    if(mountId && D){ fsid = sid || (D.중분류 && D.중분류[String(cat)] && D.중분류[String(cat)][0].id); if(fsid) s+='/'+fsid; }
+    pushNav(s);
+    if(sector && fsid && D){
+      const def = D.화면 && D.화면[fsid];
+      if(def && !Array.isArray(def) && def.부문){
+        const keys=Object.keys(def.부문), idx=keys.indexOf(sector);
+        if(idx>=0) switchGSector(mountId+'-'+fsid, idx, keys.length, def.준비중문구||'');
+      } else {
+        const send=()=>{ document.querySelectorAll('iframe[data-src="목표실행달성률.html"]').forEach(fr=>{ try{ fr.contentWindow.postMessage({__silhaengSector:sector}, '*'); }catch(e){} }); };
+        send(); setTimeout(send,300); setTimeout(send,900);
+      }
+    }
+  }
+  function renderSummary(){
+    const su=SIT.수주;
+    const suP=`<div class="sp sig-${su.sig}" onclick="selectMain(${su.tab})">${ph('수주',su.sig,su.tab,su.sub,{d:'영업기획',s:'회계'})}
+      <div class="su-cards">${su.pairs.map(pr=>`<div class="su-card">
+        <div class="su-top"><div class="su-tiles">${pr.tiles.map(t=>`<div class="jt ${t.cls||''}"><div class="jt-l">${t.l}</div><div class="jt-v">${t.v}</div></div>`).join('')}<div class="pn-s">${pr.s}</div></div>${donut(pr.p,pr.c,pr.l)}</div>
+        <table class="su-tbl"><thead><tr>${pr.tbl.h.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${pr.tbl.rows.map(r=>`<tr>${r.map(c=>`<td class="${String(c).startsWith('▼')?'d':String(c).startsWith('+')?'p':''}">${c}</td>`).join('')}</tr>`).join('')}</tbody></table>
+      </div>`).join('')}</div></div>`;
+    const ii=SIT.이익;
+    const iiP=`<div class="sp sig-${ii.sig}" onclick="selectMain(${ii.tab})">${ph('이익',ii.sig,ii.tab,ii.sub,{d:'인프라·건축',s:'공사지원, 회계'})}
+      <div class="ii-top"><div class="slope-wrap" onclick="goDeep(event, 4, 'mount-4', IIK, 1)">${slopeChart(ii.flow)}</div>
+        <div class="ii-tiles">${ii.flow.map(f=>{const dn=f.jun-f.tu;return `<div class="jt" style="border-color:${f.c}66;"><div class="jt-l">${f.n} 준공추정</div><div class="jt-v" style="color:${f.c};">${f.jun}%</div><div class="jt-s">준공−투찰 ${dn<0?'▼'+Math.abs(dn).toFixed(1):'+'+dn.toFixed(1)}p</div></div>`;}).join('')}</div></div>
+      ${ii.flow.map(f=>statusStack(f)).join('')}
+      <div class="critline"><span class="cb-t">판정 기준 (준공추정율)</span><span class="cb cb-al">경보 100% 초과</span><span class="cb cb-wn">주의 95~100%</span><span class="cb cb-ok">양호 95% 미만</span></div></div>`;
+    const go=SIT.공정;
+    const goP=`<div class="sp sig-${go.sig}" onclick="selectMain(${go.tab})">${ph('공정',go.sig,go.tab,go.sub,{d:'인프라·건축',s:'공사지원'})}
+      <div class="gb-wrap">${go.subs.map(s=>`<div class="gb" onclick="goDeep(event, 3, 'mount-2', GONGJEONG, 1, '1-1', '${s.n}')">
+        <div class="gb-h"><span class="gb-n">${s.n}</span><span class="gb-site">${s.site}</span>${s.ms?`<span class="cr-ms">${s.ms}</span>`:''}<span class="gb-p">${s.pct}%</span></div>
+        <div class="gb-bar"><div class="gb-f" style="width:${Math.min(s.pct,100)}%"><span class="gb-in">기성 6월 누계 ${s.gi} / 연간계획 ${s.gp}</span></div></div>
+        <div class="gb-su">${s.su}</div></div>`).join('')}</div></div>`;
+    const ja=SIT.자금;
+    const jaP=`<div class="sp sig-${ja.sig}" onclick="goDeep(event, ${ja.tab}, 'mount-3', JAGEUM, 3)">${ph('자금',ja.sig,ja.tab,ja.sub,{d:'재경',s:'전사'})}
+      <div class="jt-grid">${ja.tiles.map(t=>`<div class="jt ${t.cls||''}"><div class="jt-l">${t.l}</div><div class="jt-v">${t.v}</div></div>`).join('')}</div>
+      <div class="wf-wrap">${cashWaterfall(ja.wf)}</div></div>`;
+    const noteP=`<div class="note-banner"><div class="nb-spacer"></div><div class="nb-center"><div class="note-big">주요 관리 지표 중심 요약 화면</div>
+      <div class="note-mid">전체 지표는 각 부문 탭에서 조회 <b>(기준: 2026.6)</b></div></div>
+      <div class="ft-lgd"><span class="lg"><i class="dot-ok"></i>정상</span><span class="lg"><i class="dot-warn"></i>주의</span><span class="lg"><i class="dot-danger"></i>경보</span></div></div>`;
+    return `${noteP}<div class="sit">${suP}${iiP}${goP}${jaP}</div>`;
+  }
+  function donut(p,color,label){
+    const r=42,c=2*Math.PI*r,off=c*(1-Math.min(p,100)/100);
+    return `<div class="dn"><svg viewBox="0 0 116 116" width="158" height="158">
+      <circle cx="58" cy="58" r="${r}" fill="none" stroke="#243029" stroke-width="12"/>
+      <circle cx="58" cy="58" r="${r}" fill="none" stroke="${color}" stroke-width="12" stroke-linecap="round" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 58 58)"/>
+      <text x="58" y="65" text-anchor="middle" fill="#f0f4f2" font-size="22" font-weight="800">${p}%</text></svg>
+      <div class="dn-l">${label}</div></div>`;
+  }
+  function cashStack(cs){
+    const tot=cs.av+cs.net, aw=(cs.av/tot*100).toFixed(1);
+    return `<div class="cstack"><div class="cs-lbls"><span class="cs-a">${cs.avl}</span><span class="cs-n">${cs.netl}</span></div>
+      <div class="cs-bar"><div class="cs-av" style="width:${aw}%"></div><div class="cs-net" style="width:${(100-aw).toFixed(1)}%"></div></div></div>`;
+  }
+  function slopeChart(rows){
+    const W=520,H=170,pL=64,pR=50,pT=22,pB=30,dw=W-pL-pR,dh=H-pT-pB,min=84,max=106;
+    const xs=[pL,pL+dw/2,pL+dw], y=v=>pT+dh-((v-min)/(max-min))*dh;
+    const stages=["투찰실행","사업계획","준공추정"];
+    let s='';
+    xs.forEach((x,i)=>{ s+=`<line x1="${x}" y1="${pT}" x2="${x}" y2="${pT+dh}" stroke="#404f4a" stroke-width="1"/>`;
+      s+=`<text x="${x}" y="${H-8}" fill="#aab9b1" font-size="12.5" font-weight="700" text-anchor="middle">${stages[i]}</text>`; });
+    const yb=y(100);
+    s+=`<line x1="${pL-8}" y1="${yb}" x2="${pL+dw+8}" y2="${yb}" stroke="#ff6969" stroke-width="1.8" stroke-dasharray="5 3"/>`;
+    s+=`<text x="${pL+dw+10}" y="${yb+4}" fill="#ff6969" font-size="12" font-weight="800" text-anchor="start" stroke="#2b3733" stroke-width="3.4" stroke-linejoin="round" paint-order="stroke">100%</text>`;
+    rows.forEach(r=>{
+      const vs=[r.tu,r.sa,r.jun];
+      const pts=vs.map((v,i)=>xs[i]+','+y(v).toFixed(1)).join(' ');
+      /* 부문별 클릭 → 해당 부문으로 딥링크 (선·점·값라벨·부문명 전부 히트영역) */
+      s+=`<g style="cursor:pointer;" onclick="goDeep(event,4,'mount-4',IIK,1,'1-1','${r.n}')">`;
+      s+=`<polyline points="${pts}" fill="none" stroke="transparent" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" pointer-events="stroke"/>`;
+      s+=`<polyline points="${pts}" fill="none" stroke="${r.c}" stroke-width="3" pointer-events="none"/>`;
+      vs.forEach((v,i)=>{ s+=`<circle cx="${xs[i]}" cy="${y(v).toFixed(1)}" r="${i===2?5.5:4}" fill="${r.c}"/>`;
+        const ly=(v<100 && 100-v<4.5)?y(v)+22:y(v)-10;
+        s+=`<text x="${xs[i]}" y="${ly.toFixed(1)}" fill="${r.c}" font-size="11.5" font-weight="700" text-anchor="middle" stroke="#2b3733" stroke-width="3.4" stroke-linejoin="round" paint-order="stroke">${v}%</text>`; });
+      s+=`<text x="${(xs[0]-10).toFixed(1)}" y="${(y(r.tu)+4).toFixed(1)}" fill="${r.c}" font-size="11" font-weight="800" text-anchor="end">${r.n}</text>`;
+      s+=`</g>`;
+    });
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" style="min-height:150px;" preserveAspectRatio="xMidYMid meet">${s}</svg>`;
+  }
+  function statusStack(f){
+    const tot=f.al+f.wn+f.ok;
+    const seg=(v,cls,t)=> v?`<div class="ss-seg ${cls}" style="width:${(v/tot*100).toFixed(1)}%"><b>${t} ${v}</b></div>`:'';
+    return `<div class="sstack" onclick="goDeep(event, 4, 'mount-4', IIK, 1, '1-1', '${f.n}')">
+      <span class="ss-n">${f.n}</span><span class="ss-site">${f.site}</span>
+      <div class="ss-bar">${seg(f.al,'al','경보')}${seg(f.wn,'wn','주의')}${seg(f.ok,'ok','양호')}</div></div>`;
+  }
+  function cashWaterfall(w){
+    const W=620,H=186,pT=14,pB=14,pL=24,pR=24,dw=W-pL-pR,dh=H-pT-pB,top=w.av,span=w.av+w.net;
+    const y=v=>pT+((top-v)/span)*dh, colw=dw/3, bw=colw*0.72, x=i=>pL+i*colw+(colw-bw)/2;
+    const y0=y(0), fmt=n=>n.toLocaleString();
+    let s=`<line x1="${pL}" y1="${y0.toFixed(1)}" x2="${pL+dw}" y2="${y0.toFixed(1)}" stroke="#7e93ab" stroke-width="1.4" stroke-dasharray="4 3"/>`;
+    s+=`<text x="${pL+dw+3}" y="${(y0+4).toFixed(1)}" fill="#7e93ab" font-size="10.5" font-weight="700">0</text>`;
+    s+=`<rect x="${x(0).toFixed(1)}" y="${y(w.av).toFixed(1)}" width="${bw.toFixed(1)}" height="${(y0-y(w.av)).toFixed(1)}" rx="5" fill="#8cb269"/>`;
+    s+=`<text x="${(x(0)+bw/2).toFixed(1)}" y="${((y(w.av)+y0)/2+5).toFixed(1)}" fill="#241c0c" font-size="13" font-weight="800" text-anchor="middle">가용자금 +${fmt(w.av)}</text>`;
+    s+=`<rect x="${x(1).toFixed(1)}" y="${y(w.av).toFixed(1)}" width="${bw.toFixed(1)}" height="${(y(-w.net)-y(w.av)).toFixed(1)}" rx="5" fill="#e8934e" opacity="0.82"/>`;
+    s+=`<text x="${(x(1)+bw/2).toFixed(1)}" y="${((y(w.av)+y(-w.net))/2+5).toFixed(1)}" fill="#241c0c" font-size="13" font-weight="800" text-anchor="middle">− 총차입 ${fmt(w.tot)}</text>`;
+    s+=`<rect x="${x(2).toFixed(1)}" y="${y0.toFixed(1)}" width="${bw.toFixed(1)}" height="${(y(-w.net)-y0).toFixed(1)}" rx="5" fill="#ff6969"/>`;
+    s+=`<text x="${(x(2)+bw/2).toFixed(1)}" y="${((y0+y(-w.net))/2+5).toFixed(1)}" fill="#241c0c" font-size="13" font-weight="800" text-anchor="middle">순현금 ▼${fmt(w.net)}</text>`;
+    s+=`<line x1="${(x(0)+bw).toFixed(1)}" y1="${y(w.av).toFixed(1)}" x2="${x(1).toFixed(1)}" y2="${y(w.av).toFixed(1)}" stroke="#8aa096" stroke-width="1.2" stroke-dasharray="3 3"/>`;
+    s+=`<line x1="${(x(1)+bw).toFixed(1)}" y1="${y(-w.net).toFixed(1)}" x2="${x(2).toFixed(1)}" y2="${y(-w.net).toFixed(1)}" stroke="#8aa096" stroke-width="1.2" stroke-dasharray="3 3"/>`;
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">${s}</svg>`;
+  }
+
+  function buildMainTabs(){
+    $('maintabs').innerHTML = MAIN.map((m,i)=>
+      `<div class="maintab${i===0?' active':''}" id="mt-${i+1}" onclick="selectMain(${i+1})">
+        <span class="mt-dot dot-${m.dot}"></span>
+        ${m.no?`<div class="mt-no">${m.no}</div>`:``}<div class="mt-name">${m.name}</div>
+      </div>`).join('');
+  }
+  function selectMain(n){
+    document.querySelectorAll('.maintab').forEach((el,i)=>el.classList.toggle('active',i===n-1));
+    document.querySelectorAll('.dv').forEach(el=>el.classList.remove('on'));
+    $('stage-'+n).classList.add('on');
+    if(n===2) setTimeout(fitIframe, 50);
+    pushNav('t'+n);
+  }
+
+  /* ══════════ 차트 엔진 (수주와 동일) ══════════ */
+  function lineChart(el, series, maxY, labels, minY) {
+    /* 기준선 = 값이 일정하고 값라벨이 없는 계열 → 오른쪽 여백에 수치 표기 */
+    const refs = series.filter(s=>!s.vlab && s.data && s.data.length && s.data[0]!=null && s.data.every(v=>v===s.data[0]));
+    const w=600,h=215,padL=30,padR=refs.length?58:30,padY=22,dw=w-padL-padR,dh=h-padY*2,n=labels.length;
+    const y0=(minY===null||minY===undefined)?0:minY;
+    const xs=i=>padL+i*(dw/(n-1)), ys=v=>padY+dh-((v-y0)/(maxY-y0))*dh;
+    let grid='',lbl='';
+    labels.forEach((m,i)=>{ grid+=`<line x1="${xs(i)}" y1="${padY}" x2="${xs(i)}" y2="${padY+dh}" stroke="#404f4a" stroke-width="1"/>`;
+      lbl+=`<text x="${xs(i)}" y="${h-3}" fill="#aab9b1" font-size="10.5" text-anchor="middle">${m}</text>`; });
+    let paths='',dots='',vt='';
+    const labs=[];
+    series.forEach(s=>{ let d='';
+      s.data.forEach((v,i)=>{ if(v===null||v===undefined) return;
+        d+=(d?' L':'M')+` ${xs(i)} ${ys(v)}`;
+        if(s.dots) dots+=`<circle cx="${xs(i)}" cy="${ys(v)}" r="3.5" fill="${s.color}" stroke="#2b3733" stroke-width="2"/>`;
+        if(s.vlab){ const txt=s.lab?s.lab[i]:v; labs.push({i:i, x:xs(i), py:ys(v), txt:txt, color:s.color}); }
+      });
+      paths+=`<path d="${d}" stroke="${s.color}" stroke-width="${s.width||2.5}" fill="none" stroke-dasharray="${s.dash||''}" stroke-linecap="round" stroke-linejoin="round"/>`;
+    });
+    /* ── 값 레이블 자동 배치 ──
+       ① 같은 x축 지점에서 맨 아래 값만 점 아래, 나머지는 점 위 (계열별 below 지정은 사용 안 함)
+       ② 아래로만 밀어내 점의 상하 순서를 그대로 보존
+       ③ 최소 간격 LGAP(글자 9.5px의 약 1.8배) 확보                        */
+    const LGAP=17, LTOP=11, LBOT=h-16, byX={};
+    /* 각 x지점에서 모든 계열의 선 높이 — 라벨이 선 위에 얹히지 않게 피하는 데 사용 */
+    const lineY = labels.map((_,i)=> series.map(s=>s.data[i]).filter(v=>v!==null&&v!==undefined).map(v=>ys(v)) );
+    const onLine=(y,i)=> (lineY[i]||[]).some(ly=> ly>=y-8 && ly<=y+1 );
+    labs.forEach(L=>{ (byX[L.i]=byX[L.i]||[]).push(L); });
+    Object.keys(byX).forEach(k=>{
+      const g=byX[k], gi=Number(k);
+      g.sort((a,b)=>a.py-b.py);
+      /* ⓐ 위·아래 이웃 점과의 간격을 비교해 여유 있는 쪽에 배치 */
+      g.forEach((L,z)=>{
+        const up   = z===0          ? Infinity : L.py-g[z-1].py;
+        const down = z===g.length-1 ? Infinity : g[z+1].py-L.py;
+        L.y = L.py + (up>=down ? -10 : 17);
+      });
+      /* ⓑ 그래도 선 위에 얹히면 반대쪽으로 뒤집기 (반대쪽도 걸리면 그대로 두고 헤일로로 처리) */
+      g.forEach(L=>{ if(onLine(L.y,gi)){ const alt=L.py+(L.y<L.py?17:-10); if(!onLine(alt,gi)) L.y=alt; } });
+      for(let z=1;z<g.length;z++){ if(g[z].y-g[z-1].y<LGAP) g[z].y=g[z-1].y+LGAP; }
+      const over=g[g.length-1].y-LBOT; if(over>0) g.forEach(L=>{ L.y-=over; });
+      const under=LTOP-g[0].y;        if(under>0) g.forEach(L=>{ L.y+=under; });
+    });
+    labs.forEach(L=>{ vt+=`<text x="${L.x}" y="${L.y}" fill="${L.color}" font-size="9.5" font-weight="700" text-anchor="middle" stroke="#2b3733" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke">${L.txt}</text>`; });
+    /* ── 기준선 수치 라벨 (오른쪽 여백) ── */
+    refs.forEach(s=>{ vt+=`<text x="${padL+dw+8}" y="${(ys(s.data[0])+3.5).toFixed(1)}" fill="${s.color}" font-size="9.5" font-weight="800" text-anchor="start" stroke="#2b3733" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke">${s.reflab||s.data[0]}</text>`; });
+    el.innerHTML=`<svg viewBox="0 0 ${w} ${h}" width="100%" height="100%" preserveAspectRatio="none">${grid}${paths}${dots}${vt}${lbl}</svg>`;
+  }
+  function barChart(el, data, labels, color) {
+    const maxY=Math.max(...data)*1.28,w=600,h=215,padX=30,padY=18,dw=w-padX*2,dh=h-padY*2,bw=dw/data.length*0.5;
+    let bars='',lbl='';
+    data.forEach((v,i)=>{ const x=padX+i*(dw/data.length)+(dw/data.length-bw)/2,bh=(v/maxY)*dh;
+      bars+=`<rect x="${x}" y="${padY+dh-bh}" width="${bw}" height="${bh}" rx="4" fill="${Array.isArray(color)?color[i]:color}" opacity="0.85"/>`;
+      bars+=`<text x="${x+bw/2}" y="${padY+dh-bh-6}" fill="#f0f4f2" font-size="11" font-weight="700" text-anchor="middle">${v.toLocaleString()}</text>`;
+      lbl+=`<text x="${x+bw/2}" y="${h-3}" fill="#aab9b1" font-size="10.5" text-anchor="middle">${labels[i]}</text>`;
+    });
+    el.innerHTML=`<svg viewBox="0 0 ${w} ${h}" width="100%" height="100%" preserveAspectRatio="none">${bars}${lbl}</svg>`;
+  }
+
+  /* ══ 인당생산성 전용 커스텀 차트 (흑자 전환선 / 인건비·이익 가로막대) ══ */
+  function _svgWrap(inner,w,h){return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">${inner}</svg>`;}
+  function breakevenChart(el,c){
+    const W=640,H=230,L=40,R=150,T=34,B=44;
+    const salary=c.salary,plan=c.plan,est=c.est;
+    const maxY=salary*1.16,pL=L,pR=W-R,pT=T,pB=H-B,pW=pR-pL,pH=pB-pT;
+    const y=v=>pB-(v/maxY)*pH;let s='';const yb=y(salary);
+    s+=`<line x1="${pL}" y1="${yb}" x2="${pR}" y2="${yb}" stroke="#ffad42" stroke-width="2.5" stroke-dasharray="8 5"/>`;
+    s+=`<text x="${pR+8}" y="${yb-3}" fill="#ffad42" font-size="12.5" font-weight="800">흑자 전환선</text>`;
+    s+=`<text x="${pR+8}" y="${yb+14}" fill="#ffc98a" font-size="11.5">평균급여 ${salary}</text>`;
+    const bars=[{lab:'이익 (계획)',v:plan,col:'#7e93ab'},{lab:'이익 (추정)',v:est,col:'#8cb269'}];
+    const slot=pW/bars.length,bw=Math.min(112,slot*0.48);
+    bars.forEach((b,i)=>{
+      const cx=pL+slot*(i+0.5),x=cx-bw/2,yv=y(b.v),bh=pB-yv,gap=salary-b.v;
+      s+=`<rect x="${x}" y="${yv}" width="${bw}" height="${bh}" rx="5" fill="${b.col}"/>`;
+      s+=`<text x="${cx}" y="${yv+26}" fill="#ffffff" font-size="19" font-weight="800" text-anchor="middle">${b.v}</text>`;
+      s+=`<text x="${cx}" y="${yv+43}" fill="rgba(255,255,255,.72)" font-size="10.5" text-anchor="middle">백만원</text>`;
+      if(gap>0){
+        s+=`<line x1="${cx}" y1="${yv}" x2="${cx}" y2="${yb}" stroke="#ff6969" stroke-width="1.5" stroke-dasharray="3 3"/>`;
+        const py=yb+15;
+        s+=`<rect x="${cx-20}" y="${py-13}" width="40" height="19" rx="5" fill="#4a2323" stroke="#ff6969" stroke-width="1.2"/>`;
+        s+=`<text x="${cx}" y="${py}" fill="#ffb3b3" font-size="12" font-weight="800" text-anchor="middle">▼${gap}</text>`;
+      }
+      s+=`<text x="${cx}" y="${H-14}" fill="#c9d5cf" font-size="13" font-weight="700" text-anchor="middle">${b.lab}</text>`;
+    });
+    el.innerHTML=_svgWrap(s,W,H);
+  }
+  function hbarPairChart(el,c){
+    const W=640,H=232,L=54,R=76,T=14,B=24,rows=c.rows;
+    const pL=L,pR=W-R,pT=T,pB=H-B,pW=pR-pL,pH=pB-pT;
+    let mx=0;rows.forEach(r=>{mx=Math.max(mx,r.cost,r.est);});
+    const xmax=Math.ceil(mx*1.06);const x=v=>pL+(v/xmax)*pW;let s='';
+    for(let t=20;t<=xmax;t+=20){s+=`<line x1="${x(t)}" y1="${pT}" x2="${x(t)}" y2="${pB}" stroke="#33413c" stroke-width="1"/>`;s+=`<text x="${x(t)}" y="${pB+15}" fill="#8b9a92" font-size="9.5" text-anchor="middle">${t}</text>`;}
+    s+=`<line x1="${pL}" y1="${pT}" x2="${pL}" y2="${pB}" stroke="#55665e" stroke-width="1.5"/>`;
+    const gh=pH/rows.length,bh=15;
+    rows.forEach((r,i)=>{
+      const gy=pT+gh*i,cyc=gy+gh*0.34,cye=gy+gh*0.66;
+      s+=`<text x="8" y="${gy+gh/2+4}" fill="#f0f4f2" font-size="12.5" font-weight="800">${r.name}</text>`;
+      s+=`<rect x="${pL}" y="${cyc-bh/2}" width="${x(r.cost)-pL}" height="${bh}" rx="3" fill="#6b7a72"/>`;
+      s+=`<text x="${x(r.cost)+6}" y="${cyc+4}" fill="#cdd8d2" font-size="11.5" font-weight="700">${r.cost}</text>`;
+      s+=`<rect x="${pL}" y="${cye-bh/2}" width="${x(r.plan)-pL}" height="${bh}" rx="3" fill="#5f8043"/>`;
+      s+=`<rect x="${x(r.plan)}" y="${cye-bh/2}" width="${x(r.est)-x(r.plan)}" height="${bh}" fill="#a8d17e"/>`;
+      s+=`<text x="${x(r.est)+6}" y="${cye+4}" fill="#bfe0a0" font-size="11.5" font-weight="800">${r.est}</text>`;
+      const gapX0=x(r.est),gapX1=x(r.cost),diff=r.est-r.cost;
+      s+=`<rect x="${gapX0}" y="${cyc-bh/2}" width="${gapX1-gapX0}" height="${cye+bh/2-(cyc-bh/2)}" fill="#ff6969" opacity="0.13"/>`;
+      s+=`<line x1="${gapX0}" y1="${gy+gh*0.2}" x2="${gapX0}" y2="${gy+gh*0.8}" stroke="#ff6969" stroke-width="1" stroke-dasharray="2 2"/>`;
+      s+=`<text x="${pR+8}" y="${gy+gh/2}" fill="#8b9a92" font-size="10">차이</text>`;
+      s+=`<text x="${pR+8}" y="${gy+gh/2+15}" fill="#ff9b9b" font-size="14" font-weight="800">${diff<0?'▼'+Math.abs(diff):'+'+diff}</text>`;
+    });
+    el.innerHTML=_svgWrap(s,W,H);
+  }
+  function hStackChart(el,c){
+    const segs=c.segments,total=c.total||segs.reduce((s,x)=>s+x.val,0);
+    const W=640,L=18,R=18,pL=L,pR=W-R,pW=pR-pL,MINW=72;
+    let acc=0;const meta=segs.map(seg=>{const x0=pL+(acc/total)*pW;acc+=seg.val;const x1=pL+(acc/total)*pW;return{seg,x0,x1,w:x1-x0,mid:(x0+x1)/2};});
+    const narrow=meta.filter(m=>m.w<MINW);
+    const T=c.marker?56:34,barH=48,barY=T,n=narrow.length;
+    const H=n>0?(barY+barH+28+(n-1)*20+12):(barY+barH+16);
+    let s='';
+    meta.forEach(m=>{
+      s+=`<rect x="${m.x0}" y="${barY}" width="${m.w}" height="${barH}" fill="${m.seg.color}"/>`;
+      s+=`<line x1="${m.x1}" y1="${barY}" x2="${m.x1}" y2="${barY+barH}" stroke="#2b3733" stroke-width="1.5"/>`;
+      if(m.w>=MINW){
+        const pct=m.seg.val/total*100;
+        s+=`<text x="${m.mid}" y="${barY+barH/2-1}" fill="#fff" font-size="13" font-weight="800" text-anchor="middle">${m.seg.label}</text>`;
+        s+=`<text x="${m.mid}" y="${barY+barH/2+16}" fill="#fff" font-size="11.5" font-weight="700" text-anchor="middle" opacity="0.92">${m.seg.val.toLocaleString()} · ${pct.toFixed(0)}%</text>`;
+      }
+    });
+    if(c.marker){
+      const mx=pL+(c.marker.val/total)*pW,lv=c.marker.leftVal||c.marker.val,rv=c.marker.rightVal||(total-c.marker.val);
+      s+=`<rect x="${mx}" y="${barY}" width="${pR-mx}" height="${barH}" fill="#ff6969" opacity="0.24"/>`;
+      s+=`<line x1="${mx}" y1="${barY-13}" x2="${mx}" y2="${barY+barH+10}" stroke="#f0f4f2" stroke-width="2.5"/>`;
+      s+=`<text x="${mx-7}" y="${barY-31}" fill="#8cb269" font-size="12.5" font-weight="800" text-anchor="end">◀ 가용자금 ${lv.toLocaleString()}</text>`;
+      s+=`<text x="${mx-7}" y="${barY-16}" fill="#93a29a" font-size="10.5" text-anchor="end">여기까지만 자체 감당</text>`;
+      s+=`<text x="${mx+7}" y="${barY-31}" fill="#ff9b9b" font-size="12.5" font-weight="800" text-anchor="start">순차입금 ${rv.toLocaleString()} · 차환 의존 ▶</text>`;
+      s+=`<text x="${mx+7}" y="${barY-16}" fill="#d98a8a" font-size="10.5" text-anchor="start">가용 소진 후 외부조달 필요</text>`;
+    } else {
+      s+=`<text x="${pL}" y="${barY-14}" fill="#aab9b1" font-size="11.5" font-weight="700">총 ${(c.totalLabel||total).toLocaleString()}억</text>`;
+    }
+    narrow.forEach((m,i)=>{
+      const rowY=barY+barH+28+i*20,pct=m.seg.val/total*100,swX=pR-158;
+      s+=`<path d="M ${m.mid} ${barY+barH+2} L ${m.mid} ${rowY-4} L ${swX-7} ${rowY-4}" fill="none" stroke="${m.seg.color}" stroke-width="1.3" opacity="0.85"/>`;
+      s+=`<rect x="${swX}" y="${rowY-9}" width="10" height="10" rx="2" fill="${m.seg.color}"/>`;
+      s+=`<text x="${swX+16}" y="${rowY}" fill="#dce6e0" font-size="12" font-weight="700" text-anchor="start">${m.seg.label}  ${m.seg.val.toLocaleString()} · ${pct.toFixed(0)}%</text>`;
+    });
+    el.innerHTML=_svgWrap(s,W,H);
+  }
+  function dependencyGauge(el,c){
+    const W=640,H=172,L=46,R=46,pL=L,pR=W-R,pW=pR-pL;
+    const max=c.max||40,base=c.기준||30,net=c.net,gross=c.gross;
+    const x=v=>pL+(v/max)*pW,tY=94,tH=26;let s='';
+    s+=`<rect x="${pL}" y="${tY}" width="${x(base)-pL}" height="${tH}" rx="4" fill="#8cb269" opacity="0.30"/>`;
+    s+=`<rect x="${x(base)}" y="${tY}" width="${pR-x(base)}" height="${tH}" rx="4" fill="#ff6969" opacity="0.28"/>`;
+    s+=`<rect x="${pL}" y="${tY}" width="${pW}" height="${tH}" rx="4" fill="none" stroke="#55665e" stroke-width="1"/>`;
+    for(let t=0;t<=max;t+=10){s+=`<line x1="${x(t)}" y1="${tY+tH}" x2="${x(t)}" y2="${tY+tH+5}" stroke="#8b9a92"/>`;s+=`<text x="${x(t)}" y="${tY+tH+18}" fill="#8b9a92" font-size="10" text-anchor="middle">${t}%</text>`;}
+    s+=`<text x="${pL-6}" y="${tY-8}" fill="#8cb269" font-size="10.5" text-anchor="start">◀ 양호</text>`;
+    s+=`<text x="${pR+2}" y="${tY-8}" fill="#ff9b9b" font-size="10.5" text-anchor="end">경보 ▶</text>`;
+    const bx=x(base);
+    s+=`<line x1="${bx}" y1="${tY-6}" x2="${bx}" y2="${tY+tH+8}" stroke="#ffad42" stroke-width="2.5" stroke-dasharray="6 4"/>`;
+    s+=`<text x="${bx}" y="${tY-11}" fill="#ffad42" font-size="12" font-weight="800" text-anchor="middle">기준 ${base}%</text>`;
+    const xg=x(gross),xn=x(net);
+    s+=`<line x1="${xg}" y1="${tY+tH/2}" x2="${xn+9}" y2="${tY+tH/2}" stroke="#8cb269" stroke-width="2" opacity="0.55"/>`;
+    s+=`<path d="M ${xn} ${tY+tH/2} l 9 -4.5 l 0 9 z" fill="#8cb269"/>`;
+    s+=`<circle cx="${xg}" cy="${tY+tH/2}" r="6.5" fill="#2b3733" stroke="#e8934e" stroke-width="2.5"/>`;
+    s+=`<text x="${xg}" y="${tY+tH+40}" fill="#e8934e" font-size="10.5" font-weight="700" text-anchor="middle">차입금의존도(총차입)</text>`;
+    s+=`<text x="${xg}" y="${tY+tH+55}" fill="#e8934e" font-size="13" font-weight="800" text-anchor="middle">${gross}%</text>`;
+    s+=`<circle cx="${xn}" cy="${tY+tH/2}" r="9" fill="#8cb269"/>`;
+    s+=`<text x="${xn}" y="${tY-28}" fill="#8cb269" font-size="11" font-weight="700" text-anchor="middle">순차입금의존도</text>`;
+    s+=`<text x="${xn}" y="${tY-12}" fill="#8cb269" font-size="16" font-weight="800" text-anchor="middle">${net}%</text>`;
+    el.innerHTML=_svgWrap(s,W,H);
+  }
+  /* ══════════ 범용 대시보드 렌더러 ══════════ */
+  function badgeHtml(b){ return `<div class="badge ${BADGE[b.lv][0]}">${BADGE[b.lv][1]} ${b.txt}</div>`; }
+  function taskItem(it){
+    const icon = it.st==='done'?'<span class="icon-done">✔</span>':it.st==='warn'?'<span class="icon-warn">●</span>':'<span class="icon-fail">⚠</span>';
+    const nm = it.st==='fail'?`<strong style="color:#ffb3ad">${it.name}</strong>`:it.name;
+    return `<div class="task-item ${it.st}"><div class="left">${icon} ${nm}</div>${it.amt?`<span class="amt ${it.cls||''}">${it.amt}</span>`:''}</div>`;
+  }
+  function cardHtml(card, cid){
+    const accent = card.accent||'amber';
+    let inner = `<div class="panel-head"><div><div class="p-title">${card.title}</div><div class="p-sub">${card.sub||''}</div></div>`;
+    if(card.hasOutTab){
+      inner += `<div style="display:flex;gap:6px;align-items:center;">
+        <button class="scn-btn active" style="padding:4px 12px;font-size:13px;cursor:pointer;">자재</button>
+        <button class="scn-btn" style="padding:4px 12px;font-size:13px;opacity:0.4;cursor:not-allowed;" title="외주 데이터 준비 중">외주</button>
+        ${card.badge?badgeHtml(card.badge):''}
+      </div></div>`;
+    } else {
+      inner += `${card.badge?badgeHtml(card.badge):''}</div>`;
+    }
+    if(card.boxes){
+      inner += `<div class="num-dashboard" style="grid-template-columns:repeat(${card.boxes.length},1fr)">`+card.boxes.map((b,bi)=>`<div class="num-box ${b.cls||''}"><div class="num-lbl" id="${card.type==='metrics_c21' && bi<3 ? 'm21-lbl'+(bi+1) : ''}">${b.lbl}</div><div class="num-val ${card.type==='metrics_c21'?(b.cls||''):''}" id="${card.type==='metrics_c21' && bi<3 ? 'm21-val'+(bi+1) : ''}">${b.val}</div></div>`).join('')+`</div>`;
+    }
+    if(card.msg){ inner += `<div class="warning-msg ${card.msg.lv==='ok'?'safe':card.msg.lv}">${card.msg.txt}</div>`; }
+    if(card.boxes2){ inner += `<div class="num-dashboard" style="grid-template-columns:repeat(${card.boxes2.length},1fr)">`+card.boxes2.map(b=>`<div class="num-box ${b.cls||''}"><div class="num-lbl">${b.lbl}</div><div class="num-val">${b.val}</div></div>`).join('')+`</div>`; }
+    if(card.msg2){ inner += `<div class="warning-msg ${card.msg2.lv==='ok'?'safe':card.msg2.lv}">${card.msg2.txt}</div>`; }
+    if(card.cols){ inner += `<div class="tracker-box"><div class="tracker-title">${card.tableTitle||''}</div><table class="sim-table"><thead><tr>`+card.cols.map(c=>`<th>${c}</th>`).join('')+`</tr></thead><tbody>`+card.rows.map(r=>`<tr>`+r.map(c=>`<td>${c}</td>`).join('')+`</tr>`).join('')+`</tbody></table></div>`; }
+    if(card.items){ inner += `<div class="tracker-box">${card.listTitle?`<div class="tracker-title">${card.listTitle}</div>`:''}<div class="task-list">${card.items.map(taskItem).join('')}</div></div>`; }
+    if(card.type==='metrics_c21'){
+      inner += `<div class="chart-container" style="display:flex;flex-direction:column;gap:10px;flex-grow:1;min-height:300px;">
+        <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 12px;background:var(--deep);border-radius:8px;border:1px solid var(--border);">
+          <span style="font-size:12.5px;font-weight:700;color:var(--sub);margin-right:4px;">품목 선택:</span>
+          ${MAT_DATA.items.map(m => `
+            <button class="scn-btn ${activeMats[m.id]?'active':''}" id="mat-btn-${m.id}" onclick="toggleMat('${m.id}')" style="padding:4px 10px;font-size:12px;">
+              ${m.shape} ${m.name}
+            </button>
+          `).join('')}
+        </div>
+        <div class="svg-canvas" id="${cid}" style="min-height:280px;width:100%;">${getChart21SvgHtml()}</div>
+      </div>`;
+    }
+    if(card.type==='bd_table'){
+      inner += `<div class="tracker-box">
+        <div class="tracker-title">주요 자재/하도급 입찰계약 절감 현황 (공급가 1.0억원 이상)</div>
+        <div id="bd-list-box">${getBDListHtml()}</div>
+      </div>`;
+    }
+    if(card.chart){
+      const lg = (card.chart.legend||[]).map(l=>`<span style="color:${l.c};">${l.t}</span>`).join('');
+      inner += `<div class="chart-container"${card.chartMax?` style="max-height:${card.chartMax}px;min-height:0;"`:''}><div class="custom-legend">${lg}</div><div class="svg-canvas" id="${cid}"></div></div>`;
+    }
+    if(card.type==='sim'){
+      // 할인율 버튼 + 요약 + 현장별 표
+      inner += `<div class="scn-row" id="${cid}-btns"><span class="scn-lbl">할인율 시나리오 (전 현장 일괄 적용)</span></div>`;
+      inner += `<div class="num-dashboard c3" style="margin-bottom:16px;">
+        <div class="num-box"><div class="num-lbl">총 미분양 규모</div><div class="num-val" id="${cid}-unsold"></div></div>
+        <div class="num-box danger"><div class="num-lbl">추정 할인손실 계</div><div class="num-val" id="${cid}-loss"></div></div>
+        <div class="num-box warn"><div class="num-lbl">적용 할인율</div><div class="num-val" id="${cid}-rate"></div></div>
+      </div>`;
+      inner += `<div class="warning-msg danger" id="${cid}-msg" style="margin-bottom:16px;"></div>`;
+      inner += `<div class="tracker-box" style="flex-grow:1;"><table class="sim-table" id="${cid}-table"></table></div>`;
+    }
+    if(card.type==='sensor'){
+      return `<div class="panel" style="border-top:5px solid var(--miss); flex:1 1 40%; min-width:380px;">
+        <div class="panel-head"><div><div class="p-title">${card.title}</div><div class="p-sub">${card.sub||''}</div></div><div class="badge" id="${cid}-badge"></div></div>
+        <div class="warning-msg" id="${cid}-msg" style="margin-bottom:14px;"></div>
+        <div class="tracker-box" style="flex-grow:1;">
+          <div class="tracker-title">현재 분양 중 현장 (클릭 시 우측 상세) — 판정: 현재분양률 vs EXIT 목표 갭</div>
+          <div class="task-list" id="${cid}-list"></div>
+        </div>
+        <div class="note">${card.note||''}</div>
+      </div>
+      <div class="panel" id="${cid}-dpanel" style="border-top:5px solid var(--amber); flex:1 1 55%; min-width:430px;">
+        <div class="panel-head"><div><div class="p-title" id="${cid}-dtitle">현장 선택</div><div class="p-sub" id="${cid}-dsub"></div></div><div class="badge" id="${cid}-dbadge"></div></div>
+        <div class="num-dashboard c3" id="${cid}-dtop"></div>
+        <div id="${cid}-dsections"></div>
+      </div>`;
+    }
+    if(card.type==='iframe'){
+      inner += `<iframe class="embed-frame" id="${cid}-frame" src="${card.src}" data-src="${card.src}" title="${card.title}"></iframe>`;
+    }
+    if(card.note){ inner += `<div class="note">${card.note}</div>`; }
+    const wide = card.type==='iframe' ? 'flex:1 1 100%;' : '';
+    const spread = card.spread ? 'justify-content:space-between;' : '';
+    return `<div class="panel" style="border-top:5px solid var(--${accent});${wide}${spread}">${inner}</div>`;
+  }
+  function renderGeneric(mountId, D){
+    const root = $(mountId);
+    // 서브탭 구조
+    let html = `<div class="sub-head"><div class="sub-h-title">${D.meta.부제}</div><div class="sub-h-title">${D.meta.기준}</div></div>`;
+    html += `<div class="sub-tabs" id="${mountId}-subtabs"></div><div class="dept-bar" id="${mountId}-dept"></div><div class="content" id="${mountId}-content"></div>`;
+    root.innerHTML = html;
+
+    // 상단에 대분류 선택(칩) — 공정은 대분류 3개
+    const catbar = document.createElement('div');
+    catbar.style.cssText='display:flex;gap:12px;padding:18px 36px 0;';
+    D.대분류.forEach((c,ci)=>{
+      const el=document.createElement('div');
+      el.style.cssText='flex:1;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 20px;cursor:pointer;position:relative;transition:all .16s;';
+      el.innerHTML=`<div style="font-size:12px;color:var(--sub);font-weight:700;">대분류 ${ci+1}</div>
+        <div style="font-size:19px;font-weight:800;margin-top:3px;">${c.name}</div>
+        <div style="font-size:12px;color:var(--sub);margin-top:5px;">${c.desc}</div>
+        <div class="badge ${BADGE[c.status.lv][0]}" style="position:absolute;top:14px;right:16px;font-size:11px;padding:4px 9px;">${c.status.txt}</div>`;
+      el.onmouseover=()=>el.style.borderColor='var(--amber)';
+      el.onmouseout=()=>{ if(!el.dataset.active) el.style.borderColor='var(--border)'; };
+      el.onclick=()=>selectGCat(mountId, D, ci+1);
+      el.id=`${mountId}-cat-${ci+1}`;
+      catbar.appendChild(el);
+    });
+    root.insertBefore(catbar, root.firstChild.nextSibling); // sub-head 아래
+
+    root._data = D;
+    selectGCat(mountId, D, 1);
+  }
+  function selectGCat(mountId, D, ci){
+    D.대분류.forEach((_,i)=>{
+      const el=$(`${mountId}-cat-${i+1}`);
+      const on = (i===ci-1);
+      el.dataset.active = on?'1':'';
+      el.style.borderColor = on?'var(--amber)':'var(--border)';
+      el.style.background = on?'linear-gradient(180deg, rgba(255,173,66,0.10), rgba(255,173,66,0.02))':'var(--card)';
+    });
+    const subs = D.중분류[String(ci)];
+    const box = $(`${mountId}-subtabs`); box.innerHTML='';
+    subs.forEach((s,i)=>{
+      const b=document.createElement('div'); b.className='sub-tab'; b.textContent=s.name; b.id=`${mountId}-tab-${s.id}`;
+      b.onclick=()=>selectGScreen(mountId, D, s.id);
+      box.appendChild(b);
+    });
+    selectGScreen(mountId, D, subs[0].id);
+  }
+  /* ── 담당 부서 바 렌더 (중분류 기준) ── */
+  function findSub(D, sid){
+    for(const k in D.중분류){ const hit = D.중분류[k].find(s=>s.id===sid); if(hit) return hit; }
+    return null;
+  }
+  function renderDept(mountId, D, sid){
+    const box = $(`${mountId}-dept`); if(!box) return;
+    const s = findSub(D, sid);
+    if(!s || !s.담당){ box.innerHTML=''; return; }
+    const sup = (s.지원 && s.지원 !== '—')
+      ? s.지원.split(',').map(x=>`<span class="dept-sup">${x.trim()}</span>`).join('')
+      : `<span class="dept-sup" style="opacity:.55;">없음</span>`;
+    box.innerHTML = `<span class="dept-lbl">담당 :</span>
+      <span class="dept-main">${s.담당}</span>
+      <span class="dept-sep"></span>
+      <span class="dept-lbl">지원 :</span>${sup}`;
+  }
+
+  /* ══════════ [이식] 2.1 자재 단가 변동률 — 품목 선택 데이터 & 차트 ══════════ */
+  const MAT_DATA = {
+    labels: ["20년(기준)","21년","22년","23년","24년","25년","26년(현재)"],
+    items: [
+      { id:"total", name:"종합 인덱스", shape:"●", color:"#ff4d4d", dash:"", line:[100,118.5,138.2,146.4,152.0,156.8,162.5], cum:"+62.5%", yr:"+7.2%", defaultOn:true },
+      { id:"cable", name:"케이블", shape:"▲", color:"#ffaa00", dash:"5,5", line:[100,133.6,181.5,176.2,203.6,238.7,315.1], cum:"+215.1%", yr:"+32.0%", defaultOn:true },
+      { id:"cement", name:"시멘트", shape:"■", color:"#38bdf8", dash:"5,5", line:[100,122.0,137.3,161.0,161.0,161.0,176.3], cum:"+76.3%", yr:"+9.5%", defaultOn:true },
+      { id:"remital", name:"레미탈", shape:"◆", color:"#4ade80", dash:"3,3", line:[100,103.6,130.4,160.7,160.7,162.5,153.6], cum:"+53.6%", yr:"-5.5%", defaultOn:true },
+      { id:"gypsum", name:"석고보드", shape:"★", color:"#c084fc", dash:"3,3", line:[100,100.0,132.8,141.3,141.3,141.3,148.9], cum:"+48.9%", yr:"+5.4%", defaultOn:true },
+      { id:"pipe", name:"강관류", shape:"⬡", color:"#facc15", dash:"3,3", line:[100,109.0,158.6,142.8,121.4,115.3,99.1], cum:"-0.9%", yr:"+7.8%", defaultOn:true },
+      { id:"conduit", name:"강제전선관", shape:"+", color:"#22d3ee", dash:"3,3", line:[100,109.0,158.7,142.9,131.4,115.4,121.0], cum:"+21.0%", yr:"+4.8%", defaultOn:true },
+    ]
+  };
+
+  let activeMats = {};
+  MAT_DATA.items.forEach(m => { activeMats[m.id] = m.defaultOn; });
+  let lastC21Cid = null;
+
+  function toggleMat(id) {
+    activeMats[id] = !activeMats[id];
+    const btn = $(`mat-btn-${id}`);
+    const m = MAT_DATA.items.find(x => x.id === id);
+    if(btn && m){
+      btn.classList.toggle('active', activeMats[id]);
+    }
+
+    const lbl1 = $(`m21-lbl1`);
+    const val1 = $(`m21-val1`);
+    const lbl2 = $(`m21-lbl2`);
+    const val2 = $(`m21-val2`);
+    const val3 = $(`m21-val3`);
+
+    if(activeMats[id] && id !== 'total'){
+      if(lbl1) lbl1.textContent = `${m.name} 2020년 대비 상승률`;
+      if(val1) val1.textContent = m.cum;
+      if(lbl2) lbl2.textContent = `${m.name} 전년 대비 상승률`;
+      if(val2) val2.textContent = m.yr;
+    } else {
+      if(lbl1) lbl1.textContent = `2020년 대비 누적 상승률`;
+      if(val1) val1.textContent = `+62.5%`;
+      if(lbl2) lbl2.textContent = `전년 대비 상승률`;
+      if(val2) val2.textContent = `+7.2%`;
+    }
+
+    // Dynamic 손익 영향액 (추정) sign logic
+    const activeList = MAT_DATA.items.filter(item => activeMats[item.id] && item.id !== 'total');
+    let totalImpact = 0;
+    if(activeList.length === 0 || MAT_DATA.items.filter(item => activeMats[item.id]).length === MAT_DATA.items.length) {
+      totalImpact = -176;
+    } else {
+      activeList.forEach(item => {
+        const cumNum = parseFloat(item.cum.replace('%',''));
+        if(!isNaN(cumNum)) {
+          totalImpact -= Math.round(cumNum * 0.8 * 10) / 10;
+        }
+      });
+    }
+
+    if(val3) {
+      const signFmt = totalImpact > 0 ? `+${totalImpact.toFixed(1)}억원` : (totalImpact < 0 ? `${totalImpact.toFixed(1)}억원` : `0.0억원`);
+      val3.textContent = signFmt;
+      val3.className = `num-val ${totalImpact < 0 ? 'danger' : 'ok'}`;
+    }
+
+    drawChart21(lastC21Cid);
+  }
+
+  function getChart21SvgHtml(w=580, h=280) {
+    const padL = 35, padR = 25, padT = 20, padB = 25;
+    const chartW = w - padL - padR;
+    const chartH = h - padT - padB;
+
+    const activeList = MAT_DATA.items.filter(m => activeMats[m.id]);
+    let targetMax = 180;
+
+    if(activeList.length > 0) {
+      let maxDataVal = 0;
+      activeList.forEach(m => {
+        const itemMax = Math.max(...m.line);
+        if(itemMax > maxDataVal) maxDataVal = itemMax;
+      });
+      if(maxDataVal > 190) {
+        targetMax = 330;
+      } else {
+        targetMax = 190;
+      }
+    }
+
+    const maxVal = targetMax;
+    const minVal = 80;
+
+    const xStep = chartW / (MAT_DATA.labels.length - 1);
+    const getY = (val) => padT + chartH - ((val - minVal) / (maxVal - minVal)) * chartH;
+
+    let svg = `<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="overflow:visible;">`;
+
+    const gridSteps = maxVal > 200 ? [100, 150, 200, 250, 300] : [100, 120, 140, 160, 180];
+    gridSteps.forEach(v => {
+      const y = getY(v);
+      svg += `<line x1="${padL}" y1="${y}" x2="${w-padR}" y2="${y}" stroke="rgba(255,255,255,0.08)" stroke-dasharray="3,3" style="transition: all 0.4s ease-in-out;" />`;
+      svg += `<text x="${padL-8}" y="${y+4}" fill="var(--sub)" font-size="10" text-anchor="end" style="transition: all 0.4s ease-in-out;">${v}</text>`;
+    });
+
+    // X Labels
+    MAT_DATA.labels.forEach((lbl, i) => {
+      const x = padL + i * xStep;
+      svg += `<text x="${x}" y="${h-4}" fill="var(--sub)" font-size="11" text-anchor="middle">${lbl}</text>`;
+    });
+
+    // Draw active lines & markers
+    activeList.forEach(m => {
+      let d = '';
+      m.line.forEach((v, i) => {
+        const x = padL + i * xStep;
+        const y = getY(v);
+        d += (d ? ' L' : 'M') + ` ${x} ${y}`;
+      });
+      svg += `<path d="${d}" fill="none" stroke="${m.color}" stroke-width="${m.id==='total'?3.5:2.5}" stroke-dasharray="${m.dash||''}" stroke-linecap="round" stroke-linejoin="round" style="transition: all 0.4s ease-in-out;" />`;
+
+      m.line.forEach((v, i) => {
+        const x = padL + i * xStep;
+        const y = getY(v);
+        if(m.shape === '●') {
+          svg += `<circle cx="${x}" cy="${y}" r="${m.id==='total'?5:4}" fill="${m.color}" stroke="var(--card)" stroke-width="1.5" style="transition: all 0.4s ease-in-out;" />`;
+        } else if(m.shape === '▲') {
+          svg += `<polygon points="${x},${y-5} ${x-4},${y+4} ${x+4},${y+4}" fill="${m.color}" style="transition: all 0.4s ease-in-out;" />`;
+        } else if(m.shape === '■') {
+          svg += `<rect x="${x-4}" y="${y-4}" width="8" height="8" fill="${m.color}" style="transition: all 0.4s ease-in-out;" />`;
+        } else if(m.shape === '◆') {
+          svg += `<polygon points="${x},${y-5} ${x+4},${y} ${x},${y+5} ${x-4},${y}" fill="${m.color}" style="transition: all 0.4s ease-in-out;" />`;
+        } else if(m.shape === '★') {
+          svg += `<text x="${x}" y="${y+4}" fill="${m.color}" font-size="12" text-anchor="middle" style="transition: all 0.4s ease-in-out;">★</text>`;
+        } else if(m.shape === '⬡') {
+          svg += `<circle cx="${x}" cy="${y}" r="4" fill="none" stroke="${m.color}" stroke-width="2" style="transition: all 0.4s ease-in-out;" />`;
+        } else {
+          svg += `<text x="${x}" y="${y+4}" fill="${m.color}" font-size="13" font-weight="900" text-anchor="middle" style="transition: all 0.4s ease-in-out;">+</text>`;
+        }
+      });
+    });
+
+    svg += `</svg>`;
+    return svg;
+  }
+
+  function drawChart21(cid) {
+    if(cid) lastC21Cid = cid;
+    const targetId = cid || lastC21Cid || 'c21-svg-box';
+    let box = $(targetId);
+    if(!box) box = $('c21-svg-box');
+    if(!box) return;
+
+    const w = box.clientWidth || 580;
+    box.innerHTML = getChart21SvgHtml(w, 280);
+  }
+
+  /* ══════════ [이식] 2.2 예산 대비 낙찰률 — 절감 현황 백데이터 & 정렬 ══════════ */
+  const RAW_BD_ALL = [
+    { cat:"시험구기", site:"여주 무신사 물류센터", budget:0.1, bid:0.1, sav:0.0, rate:9.3, vendor:"현대정밀산업(주)" },
+    { cat:"폼관", site:"평택 주기장 및 유도로", budget:2.0, bid:1.7, sav:0.4, rate:18.3, vendor:"원기업(주)" },
+    { cat:"인조화강석블럭", site:"다이소 세종 온라인", budget:0.2, bid:0.2, sav:0.0, rate:20.8, vendor:"(주)팔팔콘크리트" },
+    { cat:"천연화강석경계석", site:"김포 한강 시네폴리스", budget:3.9, bid:3.6, sav:0.3, rate:7.6, vendor:"동아석재산업(주)" },
+    { cat:"가스보일러", site:"대전 레에브 스위첸", budget:0.3, bid:0.2, sav:0.1, rate:32.8, vendor:"(주)경동나비엔" },
+    { cat:"변압기", site:"수서 역세권 3블록", budget:2.0, bid:1.9, sav:0.1, rate:3.0, vendor:"(주)티피에스엔지니어링" },
+    { cat:"탱크류", site:"오퍼스 한강 스위첸", budget:1.1, bid:0.8, sav:0.2, rate:22.2, vendor:"(주)성지기공" },
+    { cat:"컨테인먼트", site:"화성 데이터센터 2차", budget:24.2, bid:17.4, sav:6.8, rate:28.1, vendor:"(주)알엠케이" },
+    { cat:"위생기구류", site:"대전 레에브 스위첸", budget:0.4, bid:0.4, sav:0.0, rate:8.9, vendor:"(주)하나도기타일" },
+    { cat:"연동컨테이너", site:"항남역 그로브 스위첸", budget:2.0, bid:2.0, sav:0.0, rate:0.5, vendor:"세옴모빌(주)" },
+    { cat:"락볼트", site:"강릉~제진 철도 5공구", budget:1.5, bid:1.4, sav:0.1, rate:6.8, vendor:"삼진스틸산업(주)" },
+    { cat:"보일러류", site:"수서 역세권 3블록", budget:1.5, bid:1.5, sav:0.0, rate:0.7, vendor:"(주)동방보일러" },
+    { cat:"냉동기", site:"수서 역세권 3블록", budget:4.5, bid:4.3, sav:0.2, rate:4.9, vendor:"(주)센추리" },
+    { cat:"H-BEAM", site:"항남역 그로브 스위첸", budget:6.0, bid:6.0, sav:0.0, rate:0.1, vendor:"광일철강(주)" },
+    { cat:"H-BEAM", site:"중앙대학교 서울캠퍼스", budget:5.3, bid:5.2, sav:0.2, rate:2.9, vendor:"동국제강(주)포항공장" },
+    { cat:"부스덕트", site:"수서 역세권 3블록", budget:2.1, bid:2.1, sav:0.0, rate:0.6, vendor:"(주)우진기전" },
+    { cat:"콤프류(냉수)", site:"화성 데이터센터 2차", budget:1.4, bid:1.4, sav:0.1, rate:4.3, vendor:"효성피엠(주)" },
+    { cat:"창호철물", site:"성수동 스틱 업무시설", budget:1.1, bid:0.5, sav:0.6, rate:52.6, vendor:"굿선하드웨어(주)" },
+    { cat:"수배전반", site:"수서 역세권 3블록", budget:5.7, bid:5.5, sav:0.3, rate:4.5, vendor:"세영이엔지(주)" },
+    { cat:"냉각탑", site:"수서 역세권 4블록", budget:4.0, bid:4.0, sav:0.0, rate:0.7, vendor:"(주)성지공조기술" },
+    { cat:"피형강관", site:"울진 500kV 동해안", budget:5.7, bid:5.6, sav:0.2, rate:3.0, vendor:"(주)중원" },
+    { cat:"외산자재", site:"평택 주기장 및 유도로", budget:21.5, bid:19.9, sav:1.6, rate:7.3, vendor:"에스엔씨씨퍼시픽(주)" },
+    { cat:"조명기구", site:"여의도 오피스텔 신축", budget:2.5, bid:2.4, sav:0.1, rate:2.9, vendor:"(주)영진이엘" },
+    { cat:"하향식피난사다리", site:"오퍼스 한강 스위첸", budget:3.4, bid:2.8, sav:0.5, rate:16.1, vendor:"(주)제이투테크" },
+    { cat:"연동컨테이너", site:"여주 무신사 물류센터", budget:1.1, bid:1.1, sav:0.0, rate:0.2, vendor:"세옴모빌(주)" },
+    { cat:"위생기구류", site:"여의도 오피스텔 신축", budget:4.4, bid:4.3, sav:0.1, rate:1.0, vendor:"(주)하나도기타일" },
+    { cat:"발전기", site:"수서 역세권 3블록", budget:1.5, bid:1.4, sav:0.2, rate:11.6, vendor:"(주)대흥기전" },
+    { cat:"펌프류(냉각수)", site:"화성 데이터센터 2차", budget:2.6, bid:2.5, sav:0.1, rate:4.2, vendor:"(주)선정테크" },
+    { cat:"고로슬래그시멘트", site:"김포한강시네폴리스", budget:3.3, bid:2.8, sav:0.5, rate:16.1, vendor:"(학)국민학원사업본부" },
+    { cat:"시스템가구", site:"대전 르에브 스위첸", budget:7.7, bid:4.7, sav:3.0, rate:38.7, vendor:"(주)에스엠디엔지" },
+    { cat:"펌프류", site:"수서역세권 4블록", budget:1.4, bid:0.9, sav:0.5, rate:34.3, vendor:"펌프랜드주식회사" },
+    { cat:"욕실장", site:"대전 르에브 스위첸", budget:4.9, bid:2.2, sav:2.7, rate:55.3, vendor:"(주)통인" },
+    { cat:"경질우레탄폼보드", site:"오퍼스 한강 스위첸", budget:3.2, bid:3.2, sav:0.0, rate:0.2, vendor:"(주)경동원" },
+    { cat:"사인물", site:"다이소 세종 온라인센터", budget:2.2, bid:1.8, sav:0.4, rate:17.1, vendor:"(주)큰솔애드컴" },
+    { cat:"사인물", site:"다이소 세종 허브센터", budget:2.4, bid:2.3, sav:0.1, rate:3.3, vendor:"(주)큰솔애드컴" },
+    { cat:"경질우레탄폼보드", site:"울진 500kV 동해안", budget:1.1, bid:1.1, sav:0.0, rate:0.0, vendor:"(주)에코인슈텍" },
+    { cat:"분전반", site:"화성 데이터센터 2차", budget:14.3, bid:13.9, sav:0.4, rate:3.0, vendor:"(주)플릿스인더스트리" },
+    { cat:"경질우레탄폼보드", site:"수서역세권 3블록", budget:4.2, bid:3.7, sav:0.4, rate:10.6, vendor:"(주)경동원" },
+    { cat:"갱폼", site:"오퍼스 한강 스위첸", budget:7.2, bid:8.2, sav:-1.1, rate:-14.9, vendor:"삼목에스폼(주)" },
+    { cat:"탱크류", site:"수서역세권 3블록", budget:1.2, bid:1.1, sav:0.1, rate:6.6, vendor:"(주)수엔텍이앤씨" },
+    { cat:"위생기구류", site:"다이소 세종 허브센터", budget:1.0, bid:1.0, sav:0.0, rate:2.7, vendor:"(주)하나도기타일" },
+    { cat:"공조기", site:"KCC실리콘 전주공장", budget:2.0, bid:1.8, sav:0.3, rate:13.0, vendor:"한국공조엔지니어링(주)" },
+    { cat:"알루미늄폼", site:"오퍼스 한강 스위첸", budget:8.6, bid:6.0, sav:2.6, rate:29.9, vendor:"삼목에스폼(주)" },
+    { cat:"부스덕트", site:"화성 데이터센터 2차", budget:67.5, bid:67.3, sav:0.2, rate:0.3, vendor:"(주)두루툴산" },
+    { cat:"창호철물", site:"여의도 오피스텔 신축", budget:1.2, bid:1.2, sav:0.0, rate:2.7, vendor:"(주)아린엠에이치씨" },
+    { cat:"갱폼", site:"수서역세권 4블록", budget:1.7, bid:1.2, sav:0.5, rate:28.3, vendor:"삼목에스폼(주)" },
+    { cat:"강관", site:"여주~원주 복선 1공구", budget:60.8, bid:60.2, sav:0.6, rate:1.0, vendor:"(주)포스코인터내셔널" },
+    { cat:"스티로폼", site:"안성 당목리 물류센터", budget:1.5, bid:1.4, sav:0.1, rate:4.8, vendor:"(주)케이씨씨서울영업소" },
+    { cat:"일반/주방가구", site:"대전 르에브 스위첸", budget:56.5, bid:51.2, sav:5.3, rate:9.4, vendor:"(주)우아미" },
+    { cat:"창호철물", site:"대전 르에브 스위첸", budget:4.4, bid:4.3, sav:0.1, rate:1.6, vendor:"고려하드웨어(주)" },
+    { cat:"저압반", site:"화성 데이터센터 2차", budget:66.3, bid:66.2, sav:0.1, rate:0.1, vendor:"(주)디투엔지니어링" },
+    { cat:"고압반", site:"화성 데이터센터 2차", budget:12.3, bid:12.2, sav:0.0, rate:0.2, vendor:"세영엔지니어링(주)" },
+    { cat:"PVC이중벽관", site:"대전 르에브 스위첸", budget:1.1, bid:0.9, sav:0.2, rate:21.8, vendor:"(주)뉴복" },
+    { cat:"수배전반", site:"수서역세권 4블록", budget:7.5, bid:6.5, sav:1.1, rate:13.9, vendor:"세영이엔지(주)" },
+    { cat:"일반/주방가구", site:"대전 르에브 스위첸", budget:60.1, bid:54.5, sav:5.6, rate:9.4, vendor:"(주)우아미" },
+    { cat:"스틸그레이팅", site:"포항 탄약고 교체공사", budget:3.1, bid:2.2, sav:0.9, rate:29.5, vendor:"(주)부아공영" },
+    { cat:"부스덕트", site:"수서역세권 4블록", budget:4.2, bid:3.4, sav:0.8, rate:18.1, vendor:"주식회사에스엔유티씨" },
+    { cat:"수배전반", site:"대전 르에브 스위첸", budget:7.9, bid:6.4, sav:1.5, rate:19.4, vendor:"금성전설산업(주)" },
+    { cat:"발전기", site:"대전 르에브 스위첸", budget:4.1, bid:4.0, sav:0.1, rate:2.3, vendor:"(주)대흥기전" },
+    { cat:"발전기", site:"수서역세권 4블록", budget:1.6, bid:1.4, sav:0.2, rate:15.2, vendor:"(주)대흥기전" },
+    { cat:"원격검침", site:"대전 르에브 스위첸", budget:1.7, bid:1.3, sav:0.4, rate:25.6, vendor:"(주)그린플로우" },
+    { cat:"탱크류", site:"대전 르에브 스위첸", budget:2.4, bid:1.7, sav:0.8, rate:31.4, vendor:"(주)베셀" },
+    { cat:"공조기", site:"수서역세권 4블록", budget:7.8, bid:6.0, sav:1.9, rate:24.0, vendor:"(주)휴민에어텍" },
+    { cat:"연동컨테이너", site:"진천 광혜원 물류센터", budget:1.5, bid:1.5, sav:0.0, rate:0.8, vendor:"뉴월드인텍(주)" },
+    { cat:"STS관", site:"수서역세권 3블록", budget:1.9, bid:1.7, sav:0.2, rate:10.1, vendor:"(주)상일기업" },
+    { cat:"콤프류", site:"대전 르에브 스위첸", budget:2.3, bid:1.2, sav:1.0, rate:44.5, vendor:"(주)선정테크" },
+    { cat:"대공간팬", site:"다이소 세종 허브센터", budget:4.1, bid:3.1, sav:1.0, rate:24.9, vendor:"(주)가인이앤씨" },
+    { cat:"대공간팬", site:"다이소 세종 온라인센터", budget:1.3, bid:0.9, sav:0.4, rate:29.9, vendor:"(주)가인이앤씨" },
+    { cat:"H-BEAM", site:"강릉~제진 철도 5공구", budget:3.7, bid:3.3, sav:0.4, rate:10.4, vendor:"동국제강(주)포항공장" },
+    { cat:"조명기구(일반)", site:"수서역세권 4블록", budget:1.4, bid:1.0, sav:0.4, rate:25.3, vendor:"(주)영진이엘" },
+    { cat:"수배전반", site:"여의도 오피스텔 신축", budget:4.1, bid:2.9, sav:1.2, rate:28.3, vendor:"(주)금성콘트롤" },
+    { cat:"변압기", site:"수서 역세권 4블록", budget:2.5, bid:2.5, sav:0.0, rate:1.0, vendor:"(주)근우" },
+    { cat:"변압기", site:"여의도 오피스텔 신축", budget:1.0, bid:1.0, sav:0.0, rate:2.5, vendor:"(주)근우" },
+    { cat:"주방기구", site:"다이소 세종 허브센터", budget:2.0, bid:1.6, sav:0.4, rate:19.9, vendor:"(주)매롬" },
+  ];
+
+  let bdSortMode = 'sav';   // 'sav' | 'rate'
+  let bdSortOrder = 'desc'; // 'desc' | 'asc'
+
+  function setBDSortMode(mode) {
+    if(bdSortMode === mode) {
+      bdSortOrder = (bdSortOrder === 'desc' ? 'asc' : 'desc');
+    } else {
+      bdSortMode = mode;
+      bdSortOrder = 'desc';
+    }
+    renderBDList();
+  }
+
+  function getBDListHtml() {
+    let list = [...RAW_BD_ALL].filter(c => c.budget >= 1.0);
+    if(bdSortMode === 'sav') {
+      list.sort((a,b) => bdSortOrder === 'desc' ? b.sav - a.sav : a.sav - b.sav);
+    } else {
+      list.sort((a,b) => bdSortOrder === 'desc' ? b.rate - a.rate : a.rate - b.rate);
+    }
+    let sorted = list.slice(0, 10);
+
+    const savArrow = bdSortMode === 'sav' ? (bdSortOrder === 'desc' ? '▼' : '▲') : '⇅';
+    const rateArrow = bdSortMode === 'rate' ? (bdSortOrder === 'desc' ? '▼' : '▲') : '⇅';
+
+    return '<table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">' +
+      '<thead><tr style="background:var(--bg);border-bottom:1px solid var(--border);color:var(--sub);">' +
+      '<th style="padding:8px 10px;">품목</th>' +
+      '<th style="padding:8px 10px;">공사현장</th>' +
+      '<th style="padding:8px 10px;text-align:right;">예산금액</th>' +
+      '<th style="padding:8px 10px;text-align:right;">품의금액</th>' +
+      '<th style="padding:8px 10px;text-align:right;">' +
+        '<button onclick="setBDSortMode(\'sav\')" class="scn-btn ' + (bdSortMode==='sav'?'active':'') + '" style="padding:2px 8px;font-size:12px;margin:0;">' +
+          '절감액 ' + savArrow +
+        '</button>' +
+      '</th>' +
+      '<th style="padding:8px 10px;text-align:right;">' +
+        '<button onclick="setBDSortMode(\'rate\')" class="scn-btn ' + (bdSortMode==='rate'?'active':'') + '" style="padding:2px 8px;font-size:12px;margin:0;">' +
+          '절감율 ' + rateArrow +
+        '</button>' +
+      '</th>' +
+      '<th style="padding:8px 10px;">계약 업체명</th>' +
+      '</tr></thead><tbody>' +
+      sorted.map(c =>
+        '<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">' +
+        '<td style="padding:8px 10px;font-weight:700;color:var(--text);">' + c.cat + '</td>' +
+        '<td style="padding:8px 10px;color:var(--sub);">' + c.site + '</td>' +
+        '<td style="padding:8px 10px;text-align:right;">' + c.budget.toFixed(1) + '억</td>' +
+        '<td style="padding:8px 10px;text-align:right;">' + c.bid.toFixed(1) + '억</td>' +
+        '<td style="padding:8px 10px;text-align:right;font-weight:800;color:' + (c.sav>=0?'var(--actual)':'var(--miss)') + ';">' + c.sav.toFixed(1) + '억</td>' +
+        '<td style="padding:8px 10px;text-align:right;font-weight:800;color:' + (c.rate>=0?'var(--actual)':'var(--miss)') + ';">' + c.rate.toFixed(1) + '%</td>' +
+        '<td style="padding:8px 10px;color:var(--sub);">' + c.vendor + '</td>' +
+        '</tr>'
+      ).join('') +
+      '</tbody></table>';
+  }
+
+  function renderBDList() {
+    const box = $('bd-list-box');
+    if(box) box.innerHTML = getBDListHtml();
+  }
+
+  function drawCards(cards, cids){
+    cards.forEach((c,i)=>{
+      if(c.type==='sim'){ renderSim(c, cids[i]); return; }
+      if(c.type==='sensor'){ renderSensor(c, cids[i]); return; }
+      if(c.type==='metrics_c21'){ drawChart21(cids[i]); return; }
+      if(c.type==='bd_table'){ renderBDList(); return; }
+      if(!c.chart) return;
+      const el=$(cids[i]); if(!el) return;
+      if(c.chart.kind==='line') lineChart(el, c.chart.series, c.chart.maxY, c.chart.labels, c.chart.minY);
+      else if(c.chart.kind==='bar') barChart(el, c.chart.data, c.chart.labels, c.chart.color);
+      else if(c.chart.kind==='breakeven') breakevenChart(el, c.chart);
+      else if(c.chart.kind==='hbarpair') hbarPairChart(el, c.chart);
+      else if(c.chart.kind==='hstack') hStackChart(el, c.chart);
+      else if(c.chart.kind==='gauge') dependencyGauge(el, c.chart);
+    });
+  }
+  function selectGScreen(mountId, D, sid){
+    if(TAB_BY_MOUNT[mountId]) pushNav('t'+TAB_BY_MOUNT[mountId]+'/'+sid);
+    document.querySelectorAll(`#${mountId}-subtabs .sub-tab`).forEach(el=>el.classList.toggle('active', el.id===`${mountId}-tab-${sid}`));
+    renderDept(mountId, D, sid);
+    const def = D.화면[sid]||[];
+    const content = $(`${mountId}-content`);
+    const _cat = D.대분류[parseInt(String(sid).split('-')[0],10)-1];
+    const defBanner = (_cat && _cat.정의) ? `<div class="def-callout"><span class="tag">정의</span><span>${_cat.정의}</span></div>` : '';
+
+    /* ── 부문 전환형 화면: { 부문: { "인프라":[카드], "건축":[카드]|"준비중" } } ── */
+    if(!Array.isArray(def) && def.부문){
+      const keys = Object.keys(def.부문);
+      const base = `${mountId}-${sid}`;
+      let html = `<div class="sector-tabs">`+keys.map((k,i)=>
+        `<button class="sec-tab ${i===0?'on':''}" id="${base}-sec-${i}" onclick="switchGSector('${base}',${i},${keys.length},${JSON.stringify(def.준비중문구||'').replace(/"/g,'&quot;')} , ${JSON.stringify(keys).replace(/"/g,'&quot;')})">${k}</button>`).join('')+`</div>`;
+      const allCids=[];
+      keys.forEach((k,i)=>{
+        const cs = def.부문[k];
+        if(Array.isArray(cs)){
+          const cids = cs.map((_,j)=>`${base}-s${i}c${j}`);
+          allCids.push([cs,cids]);
+          html += `<div class="sector-pane" id="${base}-pane-${i}" style="${i?'display:none;':''}"><div class="panel-grid">`
+            + cs.map((c,j)=>cardHtml(c,cids[j])).join('')+`</div></div>`;
+        } else {
+          html += `<div class="sector-pane" id="${base}-pane-${i}" style="${i?'display:none;':''}">`
+            + `<div class="sector-empty"><div class="se-ico">🏗️</div><div class="se-t1">${k} — 데이터 입력 전입니다</div>`
+            + `<div class="se-t2">${typeof cs==='string'&&cs!=='준비중'?cs:'데이터 확보 시 동일한 형식으로 제공됩니다'}</div></div></div>`;
+        }
+      });
+      content.innerHTML = defBanner + html;
+      allCids.forEach(([cs,cids])=>drawCards(cs,cids));
+      return;
+    }
+
+    const cards = def;
+    const cids = cards.map((_,i)=>`${mountId}-${sid}-c${i}`);
+    content.innerHTML = defBanner + `<div class="panel-grid">`+cards.map((c,i)=>cardHtml(c,cids[i])).join('')+`</div>`;
+    drawCards(cards, cids);
+  }
+  function switchGSector(base, idx, n, alertMsg, keys){
+    for(let i=0;i<n;i++){
+      const b=$(`${base}-sec-${i}`), p=$(`${base}-pane-${i}`);
+      if(b) b.classList.toggle('on', i===idx);
+      if(p) p.style.display = i===idx?'':'none';
+    }
+    const pane=$(`${base}-pane-${idx}`);
+    if(pane && pane.querySelector('.sector-empty') && alertMsg){
+      alert(alertMsg);
+    }
+  }
+
+
+  /* ── 분양 현장 센서 (클릭형 · 옛 수주 3.1 이식) ── */
+  function renderSensor(card, cid){
+    const F=card;
+    function segStatus(seg){
+      const 분양률 = Math.round(seg.계약/seg.총세대*100);
+      if(seg.EXIT==null) return {분양률, lv: 분양률>=100?'ok':(분양률>=70?'warn':'danger'), 갭:null};
+      const 갭 = seg.EXIT - 분양률;
+      let lv = 갭<=F.주의기준_갭?'ok':(갭<F.경보기준_갭?'warn':'danger');
+      return {분양률, lv, 갭};
+    }
+    const rank={ok:0,warn:1,danger:2};
+    function siteStatus(site){
+      let worst='ok';
+      site.세부.forEach(seg=>{ const s=segStatus(seg); if(rank[s.lv]>rank[worst]) worst=s.lv; });
+      return worst;
+    }
+    const 경보수=F.현장.filter(s=>siteStatus(s)==='danger').length;
+    const 주의수=F.현장.filter(s=>siteStatus(s)==='warn').length;
+    const bd=$(cid+'-badge');
+    bd.className='badge '+BADGE[경보수?'danger':(주의수?'warn':'ok')][0];
+    bd.textContent=BADGE[경보수?'danger':(주의수?'warn':'ok')][1]+' '+(경보수?`경보 ${경보수}개`:(주의수?`주의 ${주의수}개`:'전 현장 정상'));
+    const mg=$(cid+'-msg');
+    mg.className='warning-msg '+(경보수?'danger':(주의수?'warn':'safe'));
+    mg.innerHTML=`<strong>[${경보수?'센서 경보':(주의수?'주의':'정상')}]</strong> 전 ${F.현장.length}개 현장 중 경보 ${경보수} · 주의 ${주의수} — EXIT 목표 미달 갭 ${F.경보기준_갭}%p 이상은 경보`;
+
+    const badgeDot={ok:'🟢',warn:'🟡',danger:'🚨'};
+    $(cid+'-list').innerHTML=F.현장.map((site,i)=>{
+      const lv=siteStatus(site);
+      let worstSeg=site.세부[0], worstRank=-1;
+      site.세부.forEach(seg=>{ const s=segStatus(seg); if(rank[s.lv]>worstRank){worstRank=rank[s.lv];worstSeg=seg;} });
+      const 분양률=Math.round(worstSeg.계약/worstSeg.총세대*100);
+      const clsMap={ok:'green',warn:'amber',danger:'red'}, stMap={ok:'done',warn:'warn',danger:'fail'};
+      const 구분표시=site.세부.length>1?` <span style="color:var(--sub);font-size:12px;">(${site.세부.length}개 구분)</span>`:'';
+      return `<div class="task-item ${stMap[lv]}" style="cursor:pointer;" onclick="__sensorSelect('${cid}',${i})" id="${cid}-site-${i}">
+        <div class="left">${badgeDot[lv]} ${site.이름}${구분표시}</div>
+        <span class="amt ${clsMap[lv]}">${분양률}%</span></div>`;
+    }).join('');
+
+    window.__SENSORS = window.__SENSORS||{};
+    window.__SENSORS[cid]={F, segStatus, siteStatus};
+    let idx=F.현장.findIndex(s=>siteStatus(s)==='danger');
+    if(idx<0) idx=0;
+    __sensorSelect(cid, idx);
+  }
+  function __sensorSelect(cid, i){
+    const ctx=window.__SENSORS[cid]; if(!ctx) return;
+    const {F, segStatus, siteStatus}=ctx;
+    const site=F.현장[i];
+    F.현장.forEach((_,k)=>{ const el=$(`${cid}-site-${k}`); if(el) el.style.outline=k===i?'2px solid var(--amber)':'none'; });
+    const lv=siteStatus(site);
+    const badgeDot={ok:'🟢',warn:'🟡',danger:'🚨'};
+    const db=$(cid+'-dbadge');
+    db.className='badge '+BADGE[lv][0];
+    db.textContent=BADGE[lv][1]+' '+(lv==='ok'?'정상':lv==='warn'?'주의':'경보');
+    $(cid+'-dpanel').style.borderTop='5px solid var(--'+(lv==='ok'?'actual':lv==='warn'?'amber':'miss')+')';
+    $(cid+'-dtitle').textContent=site.이름;
+    $(cid+'-dsub').textContent=site.세부.length>1?`구분 ${site.세부.length}개 · 도급/PF는 현장 공통`:'';
+    const 총세대=site.세부.reduce((a,s)=>a+s.총세대,0);
+    const 총계약=site.세부.reduce((a,s)=>a+s.계약,0);
+    const fmtL=v=>v.toLocaleString();
+    $(cid+'-dtop').innerHTML=`
+      <div class="num-box"><div class="num-lbl">총 도급액</div><div class="num-val">${site.도급?fmtL(site.도급)+'억':'—'}</div></div>
+      <div class="num-box ${site.PF>0?'warn':''}"><div class="num-lbl">PF 잔액</div><div class="num-val">${site.PF>0?fmtL(site.PF)+'억':'없음'}</div></div>
+      <div class="num-box"><div class="num-lbl">전체 분양률</div><div class="num-val">${Math.round(총계약/총세대*100)}% <small>${총계약}/${총세대}</small></div></div>`;
+    $(cid+'-dsections').innerHTML=site.세부.map((seg,si)=>{
+      const s=segStatus(seg);
+      const 잔여=seg.총세대-seg.계약;
+      const exitTxt=seg.EXIT표시||(seg.EXIT!=null?seg.EXIT+'%':'—');
+      const 갭Txt=s.갭!=null?(s.갭<=0?'목표 달성/초과':`목표 대비 -${s.갭}%p`):'전세(EXIT 없음)';
+      return `<div class="tracker-box">
+        <div class="tracker-title">${badgeDot[s.lv]} ${seg.구분} — 분양률 ${s.분양률}% / EXIT ${exitTxt} · ${갭Txt}</div>
+        <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+          <div style="flex:1; min-width:180px;">
+            <div class="num-dashboard c3" style="margin-bottom:0;">
+              <div class="num-box"><div class="num-lbl">총세대</div><div class="num-val">${seg.총세대}</div></div>
+              <div class="num-box ok"><div class="num-lbl">계약</div><div class="num-val">${seg.계약}</div></div>
+              <div class="num-box ${잔여>0?'warn':''}"><div class="num-lbl">잔여</div><div class="num-val">${잔여}</div></div>
+            </div>
+          </div>
+          <div style="width:150px; height:150px;" id="${cid}-donut-${i}-${si}"></div>
+        </div>
+      </div>`;
+    }).join('');
+    site.세부.forEach((seg,si)=>{
+      const 잔여=seg.총세대-seg.계약;
+      __saleDonut(`${cid}-donut-${i}-${si}`, seg.계약, 잔여);
+    });
+  }
+  function __saleDonut(id, done, rest){
+    const el=$(id); if(!el) return;
+    const total=done+rest, R=58, r=34, cx=75, cy=75;
+    const frac=total?done/total:0;
+    const a0=-Math.PI/2, a1=a0+frac*2*Math.PI;
+    const large=frac>0.5?1:0;
+    let seg='';
+    if(frac>0 && frac<1){
+      seg=`<path d="M ${cx+R*Math.cos(a0)} ${cy+R*Math.sin(a0)} A ${R} ${R} 0 ${large} 1 ${cx+R*Math.cos(a1)} ${cy+R*Math.sin(a1)} L ${cx+r*Math.cos(a1)} ${cy+r*Math.sin(a1)} A ${r} ${r} 0 ${large} 0 ${cx+r*Math.cos(a0)} ${cy+r*Math.sin(a0)} Z" fill="#8cb269" opacity="0.92"/>`;
+      seg+=`<path d="M ${cx+R*Math.cos(a1)} ${cy+R*Math.sin(a1)} A ${R} ${R} 0 ${large?0:1} 1 ${cx+R*Math.cos(a0+2*Math.PI)} ${cy+R*Math.sin(a0+2*Math.PI)} L ${cx+r*Math.cos(a0+2*Math.PI)} ${cy+r*Math.sin(a0+2*Math.PI)} A ${r} ${r} 0 ${large?0:1} 0 ${cx+r*Math.cos(a1)} ${cy+r*Math.sin(a1)} Z" fill="#ff6969" opacity="0.55"/>`;
+    } else {
+      const c=frac>=1?'#8cb269':'#ff6969';
+      seg=`<circle cx="${cx}" cy="${cy}" r="${(R+r)/2}" fill="none" stroke="${c}" stroke-width="${R-r}" opacity="0.85"/>`;
+    }
+    el.innerHTML=`<svg viewBox="0 0 150 150" width="100%" height="100%">${seg}
+      <text x="${cx}" y="${cy-4}" fill="#f0f4f2" font-size="19" font-weight="800" text-anchor="middle">${Math.round(frac*100)}%</text>
+      <text x="${cx}" y="${cy+14}" fill="#aab9b1" font-size="10" text-anchor="middle">계약 ${done}</text></svg>`;
+  }
+
+  /* ── 미분양 손실 시뮬레이터 (현장별 표) ── */
+  function renderSim(card, cid){
+    const 현장 = card.현장;
+    const fmt = v => Math.round(v).toLocaleString();
+    function calc(rate){
+      return 현장.map(s=>{
+        const 미분양 = s.도급 * (1 - s.분양률/100);
+        const 손실 = 미분양 * rate/100;
+        return { 이름:s.이름, 도급:s.도급, 분양률:s.분양률, 미분양, 손실 };
+      });
+    }
+    function draw(rate){
+      const rows = calc(rate);
+      const 총미분양 = rows.reduce((a,r)=>a+r.미분양,0);
+      const 총손실 = rows.reduce((a,r)=>a+r.손실,0);
+      const 총도급 = rows.reduce((a,r)=>a+r.도급,0);
+      $(`${cid}-unsold`).textContent = fmt(총미분양)+'억';
+      $(`${cid}-loss`).textContent = fmt(총손실)+'억';
+      $(`${cid}-rate`).textContent = rate+'%';
+      $(`${cid}-msg`).innerHTML = (card.총평문구||'').replace('{할인}', rate).replace('{손실}', fmt(총손실));
+      card.할인율.forEach(r=> { const b=$(`${cid}-b-${r}`); if(b) b.classList.toggle('active', r===rate); });
+      // 표 렌더 (손실 큰 순 정렬) + 손실 열 가로 막대
+      const sorted = [...rows].sort((a,b)=>b.손실-a.손실);
+      const maxLoss = Math.max(...sorted.map(r=>r.손실), 1);
+      let html = `<thead><tr>
+        <th>현장</th><th>도급액</th><th>분양률</th><th>미분양 규모</th>
+        <th style="min-width:200px;">할인손실 <span class="sim-rate-badge">${rate}%</span></th></tr></thead><tbody>`;
+      sorted.forEach(r=>{
+        const pct = Math.round(r.손실/maxLoss*100);
+        html += `<tr><td>${r.이름}</td><td>${fmt(r.도급)}억</td><td>${r.분양률}%</td>
+          <td>${fmt(r.미분양)}억</td>
+          <td class="loss-bar-cell"><div class="loss-bar-wrap">
+            <div class="loss-bar-track"><div class="loss-bar-fill" style="width:${pct}%;"></div></div>
+            <div class="loss-bar-val">${fmt(r.손실)}억</div>
+          </div></td></tr>`;
+      });
+      html += `<tr class="sum-row"><td>전사 합계</td><td>${fmt(총도급)}억</td><td>—</td>
+        <td>${fmt(총미분양)}억</td>
+        <td class="loss-bar-cell"><div class="loss-bar-wrap">
+          <div class="loss-bar-track"><div class="loss-bar-fill" style="width:100%;"></div></div>
+          <div class="loss-bar-val">${fmt(총손실)}억</div>
+        </div></td></tr>`;
+      html += `</tbody>`;
+      $(`${cid}-table`).innerHTML = html;
+    }
+    $(`${cid}-btns`).innerHTML = '<span class="scn-lbl">할인율 시나리오 (전 현장 일괄 적용)</span>' +
+      card.할인율.map(r=>`<div class="scn-btn" id="${cid}-b-${r}" onclick="window['${cid}_set'](${r})">${r}%</div>`).join('');
+    window[`${cid}_set`] = draw;
+    draw(card.현재할인율 || card.할인율[0]);
+  }
+
+  /* ── iframe(수주) 높이 자동조절 ── */
+  function fitIframe(){
+    const f = $('iframe-수주');
+    if(!f) return;
+    try {
+      const doc = f.contentWindow ? f.contentWindow.document : f.contentDocument;
+      if(doc && doc.body){
+        const h = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
+        if(h>200){ f.style.height = h + 'px'; }
+      }
+    } catch(e){ /* 크로스오리진 등 실패 시 기본 높이 유지 */ }
+  }
+  (function(){
+    const f = $('iframe-수주');
+    if(f){
+      f.addEventListener('load', ()=>{ fitIframe(); setTimeout(fitIframe,300); setTimeout(fitIframe,800); });
+    }
+    window.addEventListener('resize', fitIframe);
+  })();
+  /* ── 목표실행달성률 iframe(이익 1.1) 높이 자동조절 (postMessage) ── */
+  window.addEventListener('message', function(e){
+    if(e.data && e.data.__silhaeng && e.data.h>200){
+      document.querySelectorAll('iframe[data-src="목표실행달성률.html"]').forEach(function(fr){ fr.style.height = e.data.h + 'px'; });
+    }
+  });
+
+  /* ── 초기화 ── */
+  buildMainTabs();
+  $('mount-summary').innerHTML = renderSummary();
+  renderGeneric('mount-2', GONGJEONG);
+  renderGeneric('mount-3', JAGEUM);
+  renderGeneric('mount-4', IIK);
+  selectMain(1);   // 첫 화면
+  NAV_READY=true; CUR_NAV='t1';
+</script>
+</body>
+</html>

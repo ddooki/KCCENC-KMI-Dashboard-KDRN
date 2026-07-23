@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>01 수주 — 선행지표 대시보드</title>
+<style>
+  :root {
+    --bg: #35423e; --card: #404f4a; --deep: #2b3733; --text: #f0f4f2; --sub: #aab9b1; --border: #55665e;
+    --plan: #7e93ab; --actual: #8cb269; --miss: #ff6969; --amber: #ffad42;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: 'Pretendard','Apple SD Gothic Neo','Malgun Gothic',sans-serif; background: var(--bg); color: var(--text); margin:0; min-height:100vh; overflow-x:hidden; }
+  .header { background: var(--deep); padding: 18px 36px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); }
+  .header-title { font-size:22px; font-weight:800; color:var(--amber); letter-spacing:-0.5px; }
+  .header-title span { color:var(--plan); font-size:15px; font-weight:500; margin-left:10px; }
+  .header-date { font-size:13px; color:var(--sub); font-weight:600; }
+
+  .cat-tabs { display:flex; gap:14px; padding:20px 36px 0; }
+  .cat-tab { flex:1; background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px 22px; cursor:pointer; transition:all .18s; position:relative; overflow:hidden; }
+  .cat-tab:hover { border-color:var(--amber); transform:translateY(-2px); }
+  .cat-tab.active { border-color:var(--amber); background:linear-gradient(180deg, rgba(255,173,66,0.10), rgba(255,173,66,0.02)); }
+  .cat-tab.active::before { content:""; position:absolute; top:0; left:0; right:0; height:4px; background:var(--amber); }
+  .cat-no { font-size:12px; color:var(--sub); font-weight:700; letter-spacing:1px; }
+  .cat-name { font-size:20px; font-weight:800; margin-top:4px; }
+  .cat-desc { font-size:12.5px; color:var(--sub); margin-top:6px; }
+  .cat-status { position:absolute; top:16px; right:18px; font-size:12px; font-weight:800; padding:4px 10px; border-radius:6px; }
+  .st-ok { background:rgba(140,178,105,0.15); color:#a8d480; border:1px solid var(--actual); }
+  .st-warn { background:rgba(255,173,66,0.13); color:#ffd08f; border:1px solid var(--amber); }
+  .st-danger { background:rgba(255,105,105,0.15); color:#ffb3ad; border:1px solid var(--miss); animation:blink 1.6s infinite; }
+  @keyframes blink { 50% { opacity:.55; } }
+
+  .sub-tabs { display:flex; gap:10px; padding:16px 36px 0; }
+  /* ── 동종업계 포지션 표 ── */
+  .pos-table tr.hd1 th, .pos-table tr.hd2 th { padding:7px 6px; font-size:11.5px; }
+  .pos-table tr.hd1 th.grp-a, .pos-table tr.hd2 th.grp-a { background:rgba(126,147,171,0.13); }
+  .pos-table tr.hd1 th.grp-b, .pos-table tr.hd2 th.grp-b { background:rgba(255,173,66,0.11); }
+  .pos-table tr.hd1 th { border-bottom:1px solid var(--border); text-align:center; }
+  .pos-table .th-sub { display:block; font-size:10px; font-weight:600; opacity:.7; }
+  .pos-table td.c-me { background:rgba(255,173,66,0.06); }
+  .pos-table td.c-now { background:rgba(140,178,105,0.09); border-left:2px solid #55665e; }
+  .c-amt { font-size:14px; font-weight:800; }
+  .c-pct { font-size:11px; color:var(--sub); font-weight:700; margin-top:1px; }
+  /* ── 100% 누적 막대 ── */
+  .posbar { margin-bottom:11px; }
+  .pb-hd { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; font-size:12px; color:var(--sub); }
+  .pb-nm { font-weight:700; }
+  .pb-pd { font-size:11px; opacity:.75; margin-left:6px; font-weight:600; }
+  .pb-tot { font-size:12px; font-weight:800; color:var(--text); }
+  .pb-track { display:flex; border-radius:6px; overflow:hidden; }
+  .pb-track .bs { display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; color:#2b3733; overflow:hidden; white-space:nowrap; }
+  .posbar.me .pb-track { border:2px solid var(--amber); }
+  .posbar.me .pb-nm { color:var(--text); }
+  .pb-div { border-top:1px solid var(--border); margin:14px 0 12px; }
+  .pb-lgd { display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; font-size:11.5px; color:var(--sub); }
+  .pb-lgd i { display:inline-block; width:11px; height:9px; border-radius:2px; margin-right:5px; vertical-align:-1px; }
+  /* ── 3층 스택 막대 ── */
+  .stack3 { position:relative; display:flex; height:34px; border-radius:8px; overflow:hidden; background:var(--deep); border:1px solid var(--border); }
+  .stack3 .seg { display:flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:800; white-space:nowrap; overflow:hidden; }
+  .seg.s-fix { background:#8cb269; color:#2b3733; }
+  .seg.s-est { background:rgba(255,173,66,0.62); color:#241c0c; }
+  .seg.s-gap { background:repeating-linear-gradient(45deg,rgba(255,105,105,.20),rgba(255,105,105,.20) 6px,transparent 6px,transparent 12px); color:#ff8f7a; }
+  .stack3 .planline { position:absolute; top:0; width:3px; height:100%; background:#f0f4f2; transform:translateX(-3px); }
+  .stack-lgd { display:flex; gap:14px; flex-wrap:wrap; margin-top:9px; font-size:11.5px; color:var(--sub); }
+  .stack-lgd i.sw { display:inline-block; width:12px; height:10px; border-radius:2px; margin-right:5px; vertical-align:-1px; }
+  .sw.s-fix{background:#8cb269;} .sw.s-est{background:rgba(255,173,66,.62);} 
+  .sw.s-gap{background:rgba(255,105,105,.35);} .sw.s-pl{background:#f0f4f2;width:3px;}
+  /* ── 표 보조 ── */
+  .pos-table tr.sumrow td { background:rgba(255,173,66,0.08); font-weight:800; border-top:1px solid var(--border); }
+  .pos-table tr.divrow td { background:var(--deep); color:var(--sub); font-size:12px; font-weight:700; text-align:left; padding:7px 8px; }
+  .site-table { font-size:13px; }
+  .site-table td { padding:9px 8px; }
+  .sub-note { display:block; font-size:11px; color:var(--sub); font-weight:600; margin-top:2px; }
+  /* ── SPI 눈금자 ── */
+  .scale-wrap { padding:4px 2px 0; }
+  .scale-bar { position:relative; height:26px; background:var(--deep); border:1px solid var(--border); border-radius:7px; }
+  .sc-zone { position:absolute; top:0; height:100%; background:rgba(255,105,105,0.16); border-radius:6px 0 0 6px; }
+  .sc-line { position:absolute; top:0; width:2px; height:100%; }
+  .sc-dot { position:absolute; top:9px; width:8px; height:8px; border-radius:50%; transform:translateX(-4px); opacity:.85; }
+  .sc-now { position:absolute; top:-4px; width:3px; height:34px; background:#f0f4f2; transform:translateX(-1px); }
+  .scale-lbl { display:flex; justify-content:space-between; margin-top:7px; font-size:11.5px; color:var(--sub); font-weight:700; }
+  /* ── SPI 현장 리스트 ── */
+  .spi-row { display:flex; align-items:center; gap:9px; padding:9px 11px; border-radius:8px; background:var(--deep); border:1px solid var(--border); margin-bottom:6px; cursor:pointer; transition:.12s; }
+  .spi-row:hover { border-color:var(--amber); }
+  .spi-row.on { border-color:var(--amber); background:rgba(255,173,66,0.10); }
+  .spi-row.danger { border-left:4px solid #ff6969; }
+  .spi-row.warn { border-left:4px solid #ffad42; }
+  .spi-row.ok { border-left:4px solid #8cb269; }
+  .spi-ico { font-size:12px; }
+  .spi-nm { flex:1; font-size:13.5px; font-weight:700; }
+  .spi-amt { font-size:12.5px; color:var(--sub); font-weight:700; }
+  .spi-val { font-size:15px; font-weight:800; min-width:66px; text-align:right; }
+  /* ── SPI 상세 ── */
+  .fac-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:13px; margin-bottom:18px; }
+  .fac { background:var(--deep); border:1px solid var(--border); border-radius:9px; padding:15px 16px; }
+  .fac-h { display:flex; align-items:baseline; gap:7px; }
+  .fac-no { font-size:13px; color:var(--sub); }
+  .fac-nm { flex:1; font-size:13.5px; font-weight:800; }
+  .fac-v { font-size:23px; font-weight:800; }
+  .fac-d { font-size:13px; margin-top:7px; line-height:1.6; }
+  .fac-s { font-size:11.5px; color:var(--sub); margin-top:5px; }
+  .chain-box { background:var(--deep); border:1px solid var(--border); border-radius:9px; padding:16px 17px; margin-bottom:16px; }
+  .chain { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  .ch-v { display:inline-block; min-width:58px; text-align:center; padding:9px 12px; border:2px solid; border-radius:8px; font-size:18px; font-weight:800; }
+  .ch-x { font-size:15px; color:var(--sub); font-weight:800; }
+  .ch-r { display:inline-block; min-width:104px; text-align:center; padding:9px 14px; border:2px solid; border-radius:8px; font-size:21px; font-weight:800; }
+  .chain-note { font-size:11.5px; color:var(--sub); margin-top:9px; }
+  /* ── SPI 평가 기준표 ── */
+  .crit-table { width:100%; border-collapse:collapse; font-size:12.5px; margin-top:10px; }
+  .crit-table th { padding:9px 9px; font-size:13px; color:var(--sub); font-weight:800; text-align:left; border-bottom:1px solid var(--border); }
+  .crit-table td { padding:11px 9px; border-bottom:1px solid var(--border); vertical-align:top; line-height:1.45; color:var(--sub); }
+  .crit-table tr:last-child td { border-bottom:none; }
+  .crit-table td .cv { display:inline-block; min-width:26px; font-weight:800; color:var(--text); margin-right:6px; }
+  .crit-table td.empty { color:var(--border); }
+  .crit-table td.hit-cell { background:rgba(255,173,66,0.13); border:1.5px solid var(--amber); border-radius:6px; color:var(--text); }
+  .crit-table td.hit-cell .cv { color:var(--amber); }
+  .spd-adv { background:rgba(255,173,66,0.09); border:1px solid rgba(255,173,66,0.35); border-radius:9px; padding:14px 16px; font-size:13.5px; line-height:1.75; margin-bottom:14px; }
+  @media (max-width:980px){ .fac-grid { grid-template-columns:1fr; } }
+  .dept-bar { display:flex; align-items:center; gap:9px; padding:14px 36px 0; flex-wrap:wrap; }
+  .dept-lbl { font-size:12px; color:var(--sub); font-weight:800; letter-spacing:0.5px; }
+  .dept-main { background:var(--amber); color:#241c0c; padding:7px 15px; border-radius:8px; font-size:14.5px; font-weight:800; }
+  .dept-sup { background:var(--deep); border:1px solid var(--border); color:var(--text); padding:7px 13px; border-radius:8px; font-size:13.5px; font-weight:700; }
+  .dept-sep { width:1px; height:20px; background:var(--border); margin:0 5px; }
+  .sub-tab { padding:11px 26px; border-radius:9px; background:var(--deep); border:1px solid var(--border); font-size:15px; font-weight:700; color:var(--sub); cursor:pointer; transition:all .15s; }
+  .sub-tab:hover { color:var(--text); border-color:var(--sub); }
+  .sub-tab.active { background:var(--amber); color:#241c0c; border-color:var(--amber); }
+
+  .content { padding:20px 36px 36px; }
+  .view { display:none; }
+  .view.on { display:block; animation:fadeIn .25s; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(6px);} to { opacity:1; transform:none;} }
+
+  .panel-grid { display:flex; flex-wrap:wrap; gap:22px; align-items:stretch; }
+  .panel { flex:1 1 46%; min-width:430px; background:var(--card); border-radius:16px; padding:24px; border:1px solid var(--border); box-shadow:0 10px 25px rgba(0,0,0,0.3); display:flex; flex-direction:column; }
+  .panel-head { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:16px; }
+  .p-title { font-size:21px; font-weight:800; }
+  .p-sub { color:var(--sub); font-size:13px; margin-top:5px; }
+  .badge { padding:7px 14px; border-radius:8px; font-weight:800; font-size:14px; white-space:nowrap; }
+
+  .num-dashboard { display:grid; grid-template-columns:repeat(4,1fr); gap:11px; margin-bottom:14px; }
+  .num-dashboard.c3 { grid-template-columns:repeat(3,1fr); }
+  .num-box { background:var(--bg); border:1px solid var(--border); padding:14px 6px; border-radius:10px; text-align:center; }
+  .num-lbl { font-size:12px; color:var(--sub); font-weight:700; margin-bottom:6px; word-break:keep-all; }
+  .num-val { font-size:20px; font-weight:800; }
+  .num-val small { font-size:12px; color:var(--sub); font-weight:600; }
+  .num-box.ok { border-color:rgba(140,178,105,0.5); background:rgba(140,178,105,0.05); }
+  .num-box.ok .num-val { color:#a8d480; }
+  .num-box.warn { border-color:rgba(255,173,66,0.55); background:rgba(255,173,66,0.05); }
+  .num-box.warn .num-val { color:#ffd08f; }
+  .num-box.danger { border-color:rgba(255,105,105,0.7); background:rgba(255,105,105,0.08); }
+  .num-box.danger .num-val { color:#ff8f7a; }
+  .num-box.danger.live { animation:blink 1.6s infinite; }
+
+  .warning-msg { padding:13px 17px; border-radius:8px; font-size:14px; margin-bottom:14px; line-height:1.55; font-weight:600; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .warning-msg.safe { background:rgba(140,178,105,0.1); border:1px solid var(--actual); color:#c9e0a8; }
+  .warning-msg.warn { background:rgba(255,173,66,0.09); border:1px solid var(--amber); color:#ffd9a3; }
+  .warning-msg.danger { background:rgba(255,105,105,0.13); border:2px solid var(--miss); color:#ffb3ad; }
+  .impact-text { font-size:17px; font-weight:800; color:#ff8f7a; background:rgba(0,0,0,0.3); padding:5px 12px; border-radius:6px; white-space:nowrap; }
+
+  .chart-container { flex-grow:1; min-height:240px; background:var(--deep); border-radius:12px; padding:16px; border:1px solid var(--border); }
+  .custom-legend { display:flex; justify-content:center; gap:18px; margin-bottom:10px; font-size:12.5px; font-weight:bold; flex-wrap:wrap; }
+  .svg-canvas { width:100%; height:calc(100% - 26px); min-height:190px; }
+
+  .tracker-box { background:var(--deep); border-radius:10px; padding:16px; border:1px solid var(--border); margin-bottom:14px; }
+  .tracker-title { font-size:13.5px; color:var(--sub); margin-bottom:12px; font-weight:700; }
+  .task-list { display:flex; flex-direction:column; gap:9px; }
+  .task-item { display:flex; align-items:center; gap:12px; font-size:14px; background:var(--card); padding:11px 16px; border-radius:8px; border-left:4px solid var(--sub); font-weight:500; justify-content:space-between; flex-wrap:wrap; }
+  .task-item .left { display:flex; align-items:center; gap:10px; }
+  .task-item.done { border-left-color:var(--actual); }
+  .task-item.warn { border-left-color:var(--amber); background:rgba(255,173,66,0.06); }
+  .task-item.fail { border-left-color:var(--miss); background:rgba(255,105,105,0.1); }
+  .icon-done { color:var(--actual); font-weight:bold; }
+  .icon-warn { color:var(--amber); font-weight:bold; }
+  .icon-fail { color:var(--miss); font-weight:bold; font-size:17px; }
+  .amt { font-weight:800; font-size:14px; }
+  .amt.red { color:#ff8f7a; } .amt.green { color:#a8d480; } .amt.amber { color:#ffd08f; }
+
+  .pos-table { width:100%; border-collapse:collapse; font-size:14px; }
+  .pos-table th { color:var(--sub); font-size:12.5px; font-weight:700; padding:9px 8px; text-align:right; border-bottom:1px solid var(--border); }
+  .pos-table th:first-child { text-align:left; }
+  .pos-table td { padding:11px 8px; text-align:right; border-bottom:1px solid var(--border); font-weight:600; }
+  .pos-table td:first-child { text-align:left; font-weight:800; }
+  .pos-table tr:last-child td { border-bottom:none; }
+  .pos-table tr.dim td { color:var(--sub); font-weight:600; }
+  .pos-table tr.hit td { background:rgba(255,105,105,0.09); }
+  .pos-now { font-size:16px; font-weight:800; }
+  .pos-dot { display:inline-block; width:11px; height:11px; border-radius:50%; }
+  .pos-read { border-top:1px solid var(--border); margin-top:12px; padding-top:11px; font-size:13px; color:var(--sub); line-height:1.7; }
+  .hbar-row { display:flex; align-items:center; gap:12px; font-size:13px; margin-bottom:9px; font-weight:600; }
+  .hbar-name { width:92px; color:var(--sub); flex-shrink:0; }
+  .hbar-track { flex:1; background:var(--bg); border:1px solid var(--border); border-radius:6px; height:20px; position:relative; overflow:hidden; }
+  .hbar-fill { height:100%; border-radius:5px; }
+  .hbar-val { width:46px; text-align:right; font-weight:800; flex-shrink:0; }
+
+  .scn-row { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; align-items:center; }
+  .scn-lbl { font-size:13px; color:var(--sub); font-weight:700; margin-right:4px; }
+  .scn-btn { padding:8px 16px; border-radius:8px; background:var(--deep); border:1px solid var(--border); font-size:14px; font-weight:800; color:var(--sub); cursor:pointer; transition:all .13s; }
+  .scn-btn:hover { color:var(--text); border-color:var(--sub); }
+  .scn-btn.active { background:var(--amber); color:#241c0c; border-color:var(--amber); }
+
+  .note { font-size:11.5px; color:var(--sub); margin-top:14px; text-align:right; font-style:italic; }
+  @media (max-width:980px) { .panel { min-width:100%; } .cat-tabs,.sub-tabs,.dept-bar,.content { padding-left:16px; padding-right:16px; } .num-dashboard { grid-template-columns:repeat(2,1fr); } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title"><span id="hd-title"></span> <span id="hd-sub"></span></div>
+  <div class="header-date" id="hd-date"></div>
+</div>
+
+<div class="cat-tabs">
+  <div class="cat-tab" id="cat-1" onclick="selectCat(1)">
+    <div class="cat-no">대분류 1</div><div class="cat-name">신규수주 관리</div>
+    <div class="cat-desc" id="cdesc-1"></div>
+    <div class="cat-status" id="cst-1"></div>
+  </div>
+  <div class="cat-tab" id="cat-2" onclick="selectCat(2)">
+    <div class="cat-no">대분류 2</div><div class="cat-name">수주잔고 관리</div>
+    <div class="cat-desc" id="cdesc-2"></div>
+    <div class="cat-status" id="cst-2"></div>
+  </div>
+</div>
+
+<div class="sub-tabs" id="subtabs"></div>
+<div class="dept-bar" id="deptbar"></div>
+
+<div class="content">
+
+  <!-- 1.1 수주 실적 -->
+  <div class="view" id="v-1-1">
+    <div class="panel-grid">
+      <div class="panel" style="border-top:5px solid var(--amber);">
+        <div class="panel-head">
+          <div><div class="p-title">누계 수주 분포 및 달성 추정</div><div class="p-sub" id="mix-sub"></div></div>
+          <div class="badge" id="mix-badge"></div>
+        </div>
+        <div class="num-dashboard">
+          <div class="num-box"><div class="num-lbl">연간 수주계획</div><div class="num-val" id="mix-n1"></div></div>
+          <div class="num-box"><div class="num-lbl" id="mix-l2"></div><div class="num-val" id="mix-n2"></div></div>
+          <div class="num-box"><div class="num-lbl">누계 실적</div><div class="num-val" id="mix-n3"></div></div>
+          <div class="num-box" id="mix-box4"><div class="num-lbl">누계계획 대비</div><div class="num-val" id="mix-n4"></div></div>
+        </div>
+        <div class="tracker-box" style="margin-bottom:14px;">
+          <div class="tracker-title" id="mix-prog-title"></div>
+          <div id="mix-prog"></div>
+        </div>
+        <div class="tracker-box" style="margin-bottom:14px;">
+          <div class="tracker-title">공종별 연말 추정</div>
+          <table class="pos-table" id="est-table"></table>
+        </div>
+        <div class="chart-container" style="flex-grow:0; min-height:225px; margin-bottom:14px;">
+          <div id="svg-mixdonut" class="svg-canvas" style="min-height:210px;"></div>
+        </div>
+        <div class="note" id="mix-note"></div>
+      </div>
+      <div class="panel" style="border-top:5px solid var(--amber);">
+        <div class="panel-head">
+          <div><div class="p-title">동종업계 수주 비교</div><div class="p-sub" id="pos-sub"></div></div>
+          <div class="badge" id="pos-badge"></div>
+        </div>
+        <div class="tracker-box" style="margin-bottom:14px;">
+          <table class="pos-table" id="pos-table"></table>
+          <div id="pos-read"></div>
+        </div>
+        <div class="tracker-box" style="margin-bottom:0;">
+          <div class="tracker-title">공종 구성 비교 (비중)</div>
+          <div id="pos-bars"></div>
+        </div>
+        <div class="note" id="pos-note"></div>
+      </div>
+      <div class="panel" style="flex:1 1 100%; border-top:5px solid var(--amber);">
+        <div class="panel-head">
+          <div><div class="p-title">현장별 수주 실적 · 예정</div><div class="p-sub" id="site-sub"></div></div>
+          <div class="badge" id="site-badge"></div>
+        </div>
+        <div class="tracker-box" style="margin-bottom:0;">
+          <table class="pos-table site-table" id="site-table"></table>
+        </div>
+        <div class="note" id="site-note"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1.2 수주 건전성 -->
+  <div class="view" id="v-1-2">
+    <div class="panel-grid">
+      <div class="panel" style="border-top:5px solid var(--amber); flex:1 1 46%;">
+        <div class="panel-head">
+          <div><div class="p-title">수주 건전성 지수 (SPI)</div><div class="p-sub" id="spi-sub"></div></div>
+          <div class="badge" id="spi-badge"></div>
+        </div>
+        <div class="num-dashboard">
+          <div class="num-box" id="spi-box1"><div class="num-lbl">전사 SPI (금액 가중)</div><div class="num-val" id="spi-n1"></div></div>
+          <div class="num-box"><div class="num-lbl">기준선</div><div class="num-val" id="spi-n2"></div></div>
+          <div class="num-box danger"><div class="num-lbl">임계선</div><div class="num-val" id="spi-n3"></div></div>
+          <div class="num-box" id="spi-box4"><div class="num-lbl">임계 미만 현장</div><div class="num-val" id="spi-n4"></div></div>
+        </div>
+        <div class="warning-msg" id="spi-msg"></div>
+        <div class="tracker-box" style="margin-bottom:14px;">
+          <div class="tracker-title">지수 눈금 · 전사 위치</div>
+          <div id="spi-scale"></div>
+        </div>
+        <div class="tracker-box" style="margin-bottom:0;">
+          <div class="tracker-title">현장별 지수 (클릭 시 우측 상세)</div>
+          <div class="task-list" id="spi-list"></div>
+        </div>
+        <div class="note" id="spi-note"></div>
+      </div>
+      <div class="panel" id="pnl-spidetail" style="border-top:5px solid var(--amber); flex:1 1 46%;">
+        <div class="panel-head">
+          <div><div class="p-title" id="spd-title">현장 상세</div><div class="p-sub" id="spd-sub"></div></div>
+          <div class="badge" id="spd-badge"></div>
+        </div>
+        <div id="spd-body"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2.1 잔고 적정성 -->
+  <div class="view" id="v-2-1">
+    <div class="panel-grid">
+      <div class="panel" id="pnl-bal-i">
+        <div class="panel-head">
+          <div><div class="p-title">인프라 사업</div><div class="p-sub" id="bali-sub"></div></div>
+          <div class="badge" id="bali-badge"></div>
+        </div>
+        <div class="num-dashboard">
+          <div class="num-box"><div class="num-lbl">전월 잔고</div><div class="num-val" id="bali-n1"></div></div>
+          <div class="num-box"><div class="num-lbl">당월 증감</div><div class="num-val" id="bali-n2"></div></div>
+          <div class="num-box"><div class="num-lbl">현 수주잔고</div><div class="num-val" id="bali-n3"></div></div>
+          <div class="num-box" id="bali-b4"><div class="num-lbl" id="bali-l4"></div><div class="num-val" id="bali-n4"></div></div>
+        </div>
+        <div class="warning-msg" id="bali-msg"></div>
+        <div class="chart-container">
+          <div class="custom-legend"><span style="color:#7e93ab;" id="bali-lg"></span><span style="color:#8cb269;">━━ 월별 수주잔고 추이(억)</span></div>
+          <div id="svg-bal-infra" class="svg-canvas"></div>
+        </div>
+      </div>
+      <div class="panel" id="pnl-bal-a">
+        <div class="panel-head">
+          <div><div class="p-title">건축 사업</div><div class="p-sub" id="bala-sub"></div></div>
+          <div class="badge" id="bala-badge"></div>
+        </div>
+        <div class="num-dashboard">
+          <div class="num-box"><div class="num-lbl">전월 잔고</div><div class="num-val" id="bala-n1"></div></div>
+          <div class="num-box"><div class="num-lbl">당월 증감</div><div class="num-val" id="bala-n2"></div></div>
+          <div class="num-box"><div class="num-lbl">현 수주잔고</div><div class="num-val" id="bala-n3"></div></div>
+          <div class="num-box" id="bala-b4"><div class="num-lbl" id="bala-l4"></div><div class="num-val" id="bala-n4"></div></div>
+        </div>
+        <div class="warning-msg" id="bala-msg"></div>
+        <div class="chart-container">
+          <div class="custom-legend"><span style="color:#7e93ab;" id="bala-lg"></span><span style="color:#8cb269;">━━ 월별 수주잔고 추이(억)</span></div>
+          <div id="svg-bal-arch" class="svg-canvas"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2.2 잔고 추이 전망 -->
+  <div class="view" id="v-2-2">
+    <div class="panel-grid">
+      <div class="panel" id="pnl-proj-i">
+        <div class="panel-head">
+          <div><div class="p-title">인프라 — 월별 잔고 전망</div><div class="p-sub" id="proji-sub"></div></div>
+          <div class="badge" id="proji-badge"></div>
+        </div>
+        <div class="num-dashboard c3">
+          <div class="num-box"><div class="num-lbl" id="proji-l1"></div><div class="num-val" id="proji-n1"></div></div>
+          <div class="num-box danger" id="proji-b2"><div class="num-lbl">연말 추정잔고</div><div class="num-val" id="proji-n2"></div></div>
+          <div class="num-box danger live" id="proji-b3"><div class="num-lbl">추가수주 필요액</div><div class="num-val" id="proji-n3"></div></div>
+        </div>
+        <div class="warning-msg" id="proji-msg"></div>
+        <div class="chart-container">
+          <div class="custom-legend"><span style="color:#7e93ab;">╌╌ 적정잔고</span><span style="color:#ff6969;">- - 추정 궤적</span><span style="color:#8cb269;">━━ 실적 잔고</span></div>
+          <div id="svg-proj-infra" class="svg-canvas"></div>
+        </div>
+      </div>
+      <div class="panel" id="pnl-proj-a">
+        <div class="panel-head">
+          <div><div class="p-title">건축 — 월별 잔고 전망</div><div class="p-sub" id="proja-sub"></div></div>
+          <div class="badge" id="proja-badge"></div>
+        </div>
+        <div class="num-dashboard c3">
+          <div class="num-box"><div class="num-lbl" id="proja-l1"></div><div class="num-val" id="proja-n1"></div></div>
+          <div class="num-box warn" id="proja-b2"><div class="num-lbl">연말 추정잔고</div><div class="num-val" id="proja-n2"></div></div>
+          <div class="num-box warn" id="proja-b3"><div class="num-lbl">추가수주 필요액</div><div class="num-val" id="proja-n3"></div></div>
+        </div>
+        <div class="warning-msg" id="proja-msg"></div>
+        <div class="chart-container">
+          <div class="custom-legend"><span style="color:#7e93ab;">╌╌ 적정잔고</span><span style="color:#ff6969;">- - 추정 궤적</span><span style="color:#8cb269;">━━ 실적 잔고</span></div>
+          <div id="svg-proj-arch" class="svg-canvas"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="수주대시보드_data.js"></script>
+<script>
+  /* ══════════ 유틸 ══════════ */
+  const $ = id => document.getElementById(id);
+  const fmt = v => v.toLocaleString();
+  const T = (tpl, vars) => (tpl||'').replace(/\{(.+?)\}/g, (m,k)=> vars[k]!==undefined ? vars[k] : m);
+  const BADGE = { ok:['st-ok','🟢'], warn:['st-warn','🟡'], danger:['st-danger','🚨'] };
+  function setBadge(id, level, text){ const el=$(id); el.className='badge '+BADGE[level][0]; el.textContent=BADGE[level][1]+' '+text; }
+  function setMsg(id, level, html){ const el=$(id); el.className='warning-msg '+(level==='ok'?'safe':level); el.innerHTML='<div>'+html+'</div>'; }
+  function setCatStatus(id, level, text){ const el=$(id); el.className='cat-status '+BADGE[level][0]; el.textContent=text; }
+  function taskItem(st, name, amtText, amtCls){
+    const icon = st==='done' ? '<span class="icon-done">✔</span>' : st==='warn' ? '<span class="icon-warn">●</span>' : '<span class="icon-fail">⚠</span>';
+    const nm = st==='fail' ? `<strong style="color:#ffb3ad">${name}</strong>` : name;
+    return `<div class="task-item ${st}"><div class="left">${icon} ${nm}</div><span class="amt ${amtCls||''}">${amtText}</span></div>`;
+  }
+
+
+  /* ══════════ 동종업계 포지션 (분기 기준) ══════════ */
+  /* 판정: 두 그룹 모두 상회 → 정상 / 하나만 상회 → 주의 / 모두 미달 → 경고 */
+  /* 표·배지·해석문구 전부 데이터에서 자동 생성 — 문장 직접 수정 불필요      */
+  /* ══════════ 동종업계 포지션 ══════════ */
+  /* 금액 비교는 동일 시점(기준분기) · 비중 판정은 6월 누계 기준          */
+  /* 판정: 두 그룹 비중 모두 상회 → 정상 / 하나만 → 주의 / 모두 미달 → 경고 */
+  /* ══════════ 동종업계 포지션 ══════════ */
+  /* 판정: 당사 6월 비중이 두 그룹 비중 모두 상회 → 정상 / 하나만 → 주의 / 모두 미달 → 경고 */
+  /* vs 열: 26.1Q 동일 시점 당사 금액 − 그룹 금액                                       */
+  /* ══════════ 동종업계 포지션 ══════════ */
+  /* 비교·판정: 26.1Q 동일 시점 기준 (당사 1Q 비중 vs 그룹 1Q 비중)     */
+  /* 맨 오른쪽 '6월 누계' 열: 그 이후 당사가 어디로 왔는지                */
+  function renderPos(D, 총액6, 금액맵6){
+    const P=D.업계포지션; if(!P) return;
+    const 공종=['인프라','건축','주택','기타'];
+    const 제외=P.판정제외||[], G=P.그룹||[];
+    const 기준=P.당사기준분기||{};
+    const 총기준=공종.reduce((a,k)=>a+(기준[k]||0),0);
+    const 그룹총={}; G.forEach(g=>{ 그룹총[g.이름]=공종.reduce((a,k)=>a+(g.금액[k]||0),0); });
+    const pct=(v,t)=>t?v/t*100:0;
+    const cell=(금,비)=>`<div class="c-amt">${fmt(Math.round(금))}억</div><div class="c-pct">${비.toFixed(0)}%</div>`;
+
+    $('pos-sub').textContent=P.부제||'';
+    $('pos-note').textContent=P.하단주석||'';
+
+    /* ── 표: 1Q 동일 시점 비교 + 맨 끝 현재 위치 ── */
+    let h=`<thead><tr class="hd2">
+      <th style="text-align:left;">공종</th>
+      <th class="grp-a">당사<span class="th-sub">${P.기준분기}</span></th>`
+      + G.map(g=>`<th>${g.이름}<span class="th-sub">${g.순위||''}</span></th>`).join('')
+      + G.map(g=>`<th>vs ${g.이름}<span class="th-sub">금액차</span></th>`).join('')
+      + `<th style="text-align:center;">판정</th>`
+      + `<th class="grp-b">당사 현재<span class="th-sub">${D.기준월}월 누계</span></th></tr></thead><tbody>`;
+
+    const 경보=[], 주의=[], 해석=[];
+    공종.forEach(k=>{
+      const 기금=기준[k]||0, 기비=pct(기금,총기준);
+      const 육금=(금액맵6&&금액맵6[k])||0, 육비=pct(육금,총액6);
+      const skip=제외.includes(k)||(기금<=0&&육금<=0);
+      const 상회=G.filter(g=>기비>=pct(g.금액[k]||0,그룹총[g.이름])).length;
+      const lv=skip?null:(상회===G.length?'ok':상회>0?'warn':'danger');
+      if(lv==='danger')경보.push(k); else if(lv==='warn')주의.push(k);
+      const col={ok:'#8cb269',warn:'#ffad42',danger:'#ff6969'}[lv];
+      const 차들=G.map(g=>기금-(g.금액[k]||0));
+      const 이동=육비-기비;
+      const 이동표시=Math.abs(이동)<0.5?'—'
+        :`<span style="color:${이동>0?'#a8d480':'#ff8f7a'};font-size:11px;font-weight:800;">${이동>0?'▲':'▼'} ${Math.abs(이동).toFixed(0)}%p</span>`;
+      h+=`<tr class="${skip?'dim':lv==='danger'?'hit':''}">`
+        +`<td>${k}</td>`
+        +`<td class="c-me">${cell(기금,기비)}</td>`
+        + G.map(g=>`<td>${cell(g.금액[k]||0, pct(g.금액[k]||0,그룹총[g.이름]))}</td>`).join('')
+        + 차들.map(차=>`<td style="color:${차<0?'#ff8f7a':'#a8d480'};font-weight:800;">${차<0?'-':'+'}${fmt(Math.abs(Math.round(차)))}억</td>`).join('')
+        +`<td style="text-align:center;">${skip?'—':`<span class="pos-dot" style="background:${col};"></span>`}</td>`
+        +`<td class="c-now">${cell(육금,육비)}${이동표시}</td>`
+        +`</tr>`;
+      if(lv==='danger'||lv==='warn') 해석.push(makeRead(k,기비,육비,차들,lv,G,그룹총));
+    });
+    h+='</tbody>';
+    $('pos-table').innerHTML=h;
+
+    if(경보.length) setBadge('pos-badge','danger',경보.join('·')+' 업계 미달');
+    else if(주의.length) setBadge('pos-badge','warn',주의.join('·')+' 주의');
+    else setBadge('pos-badge','ok','전 공종 업계 상회');
+
+    $('pos-read').className='pos-read';
+    $('pos-read').innerHTML=해석.concat(P.추가문구||[]).join('<br>')
+      || '전 공종이 동종업계 그룹 평균 비중을 상회하고 있습니다.';
+
+    /* ── 100% 누적 막대 (비중) — 전 칸 동일 라벨 규칙: 폭 8% 이상이면 "공종 N%" ── */
+    const COL={인프라:'#8cb269',건축:'#ffad42',주택:'#7e93ab',기타:'#5b7a86'};
+    function bar(label, 기간, 금액맵, 총, opt){
+      opt=opt||{};
+      const segs=공종.map(k=>{
+        const v=pct(금액맵[k]||0,총);
+        if(v<=0) return '';
+        const lab = v>=8 ? `${k} ${v.toFixed(0)}%` : '';
+        return `<div class="bs" style="width:${v}%;background:${COL[k]};">${lab}</div>`;
+      }).join('');
+      return `<div class="posbar ${opt.cls||''}">`
+        +`<div class="pb-hd"><span class="pb-nm">${label}<span class="pb-pd">${기간}</span></span>`
+        +`<span class="pb-tot">${fmt(Math.round(총))}억</span></div>`
+        +`<div class="pb-track" style="height:${opt.h||30}px;${opt.dim?'opacity:.45;':''}">${segs}</div></div>`;
+    }
+    let bars='';
+    G.forEach(g=>{ bars+=bar(g.이름+' 평균', '1Q · '+(g.순위||''), g.금액, 그룹총[g.이름]); });
+    bars+='<div class="pb-div"></div>';
+    bars+=bar('당사', P.기준분기, 기준, 총기준, {h:24, dim:true});
+    bars+=bar('당사', `${D.기준월}월 누계`, 금액맵6, 총액6, {h:38, cls:'me'});
+    bars+='<div class="pb-lgd">'+공종.map(k=>`<span><i style="background:${COL[k]};"></i>${k}</span>`).join('')+'</div>';
+    $('pos-bars').innerHTML=bars;
+  }
+
+  /* 해석 문구 자동 생성 — 1Q 판정 + 현재 위치 이동 */
+  function makeRead(k, 기비, 육비, 차들, lv, G, 그룹총){
+    const p=g=>((g.금액[k]||0)/그룹총[g.이름]*100);
+    const nm=g=>`${g.이름}(${p(g).toFixed(0)}%)`;
+    const 미달=G.filter(g=>기비<p(g)), 상회=G.filter(g=>기비>=p(g));
+    let t=`<strong style="color:#f0f4f2;">${k} 1Q ${기비.toFixed(0)}%</strong> — `;
+    t += (lv==='danger') ? `${G.map(nm).join('·')} 모두 미달` : `${미달.map(nm).join('·')} 미달 · ${상회.map(nm).join('·')} 상회`;
+    const 부족=G.map((g,i)=>({이름:g.이름,차:차들[i]})).filter(x=>x.차<0);
+    if(부족.length) t+='. '+부족.map(x=>`${x.이름} 수준까지 ${fmt(Math.abs(Math.round(x.차)))}억 부족`).join(' · ');
+    const d=육비-기비;
+    if(Math.abs(d)>=0.5) t+=` · 현재 6월 누계 ${육비.toFixed(0)}% (${d>0?'+':''}${d.toFixed(0)}%p ${d>0?'개선':'하락'} 중)`;
+    return t;
+  }
+
+
+  function lineChart(id, series, maxY, labels) {
+    const w=600, h=215, padX=30, padY=22, dw=w-padX*2, dh=h-padY*2, n=labels.length;
+    const xs=i=>padX+i*(dw/(n-1)), ys=v=>padY+dh-(v/maxY)*dh;
+    let grid='', lbl='';
+    labels.forEach((m,i)=>{ grid+=`<line x1="${xs(i)}" y1="${padY}" x2="${xs(i)}" y2="${padY+dh}" stroke="#404f4a" stroke-width="1"/>`;
+      lbl+=`<text x="${xs(i)}" y="${h-3}" fill="#aab9b1" font-size="10.5" text-anchor="middle">${m}</text>`; });
+    let paths='', dots='', vt='';
+    series.forEach(s=>{
+      let d='', seen=0;
+      s.data.forEach((v,i)=>{
+        if(v===null||v===undefined) return;
+        d+=(d?' L':'M')+` ${xs(i)} ${ys(v)}`;
+        if(s.dots) dots+=`<circle cx="${xs(i)}" cy="${ys(v)}" r="3.5" fill="${s.color}" stroke="#2b3733" stroke-width="2"/>`;
+        if(s.vlab){ seen++;
+          if(!(s.vskip && seen<=s.vskip)){
+            const txt = s.lab ? s.lab[i] : fmt(v);
+            vt+=`<text x="${xs(i)}" y="${s.below?ys(v)+17:ys(v)-9}" fill="${s.color}" font-size="9.5" font-weight="700" text-anchor="middle">${txt}</text>`;
+          } }
+      });
+      paths+=`<path d="${d}" stroke="${s.color}" stroke-width="${s.width||2.5}" fill="none" stroke-dasharray="${s.dash||''}" stroke-linecap="round" stroke-linejoin="round"/>`;
+    });
+    $(id).innerHTML=`<svg viewBox="0 0 ${w} ${h}" width="100%" height="100%" preserveAspectRatio="none">${grid}${paths}${dots}${vt}${lbl}</svg>`;
+  }
+  function barChart(id, data, labels, color) {
+    const maxY=Math.max(...data)*1.25, w=600, h=215, padX=30, padY=18, dw=w-padX*2, dh=h-padY*2, bw=dw/data.length*0.55;
+    let bars='', lbl='';
+    data.forEach((v,i)=>{
+      const x=padX+i*(dw/data.length)+(dw/data.length-bw)/2, bh=(v/maxY)*dh;
+      bars+=`<rect x="${x}" y="${padY+dh-bh}" width="${bw}" height="${bh}" rx="4" fill="${color}" opacity="0.85"/>`;
+      bars+=`<text x="${x+bw/2}" y="${padY+dh-bh-6}" fill="#f0f4f2" font-size="11" font-weight="700" text-anchor="middle">${fmt(v)}</text>`;
+      lbl+=`<text x="${x+bw/2}" y="${h-3}" fill="#aab9b1" font-size="10.5" text-anchor="middle">${labels[i]}</text>`;
+    });
+    $(id).innerHTML=`<svg viewBox="0 0 ${w} ${h}" width="100%" height="100%" preserveAspectRatio="none">${bars}${lbl}</svg>`;
+  }
+  // 막대별 색상 지정 + 마지막 막대 위에 연말추정 점선/라벨
+  function barChartColored(id, data, labels, colors, projVal) {
+    const maxY=Math.max(...data, projVal||0)*1.22, w=600, h=215, padX=30, padY=22, dw=w-padX*2, dh=h-padY*2, bw=dw/data.length*0.5;
+    const ys=v=>padY+dh-(v/maxY)*dh;
+    let bars='', lbl='';
+    data.forEach((v,i)=>{
+      const x=padX+i*(dw/data.length)+(dw/data.length-bw)/2, bh=(v/maxY)*dh;
+      bars+=`<rect x="${x}" y="${padY+dh-bh}" width="${bw}" height="${bh}" rx="4" fill="${colors[i]}" opacity="0.88"/>`;
+      bars+=`<text x="${x+bw/2}" y="${padY+dh-bh-6}" fill="#f0f4f2" font-size="11" font-weight="700" text-anchor="middle">${fmt(v)}</text>`;
+      lbl+=`<text x="${x+bw/2}" y="${h-3}" fill="#aab9b1" font-size="10.5" text-anchor="middle">${labels[i]}</text>`;
+    });
+    // 연말 추정: 마지막(올해) 막대 위에 점선 + 라벨
+    if(projVal){
+      const li = data.length-1;
+      const cx = padX + li*(dw/data.length) + (dw/data.length)/2;
+      const py = ys(projVal);
+      const x0 = padX + li*(dw/data.length) + (dw/data.length-bw)/2 - 6;
+      bars+=`<line x1="${x0}" y1="${py}" x2="${x0+bw+12}" y2="${py}" stroke="#ff6969" stroke-width="2" stroke-dasharray="5,4"/>`;
+      bars+=`<text x="${cx}" y="${py-7}" fill="#ff8f7a" font-size="11" font-weight="800" text-anchor="middle">연말추정 ${fmt(projVal)}</text>`;
+    }
+    $(id).innerHTML=`<svg viewBox="0 0 ${w} ${h}" width="100%" height="100%" preserveAspectRatio="none">${bars}${lbl}</svg>`;
+  }
+  function comboChart(id, bars, line, maxY, labels) {
+    const w=600, h=215, padX=30, padY=22, dw=w-padX*2, dh=h-padY*2, slot=dw/bars.data.length, bw=slot*0.5;
+    const ys=v=>padY+dh-(v/maxY)*dh;
+    let el='', lbl='';
+    bars.data.forEach((v,i)=>{
+      const x=padX+i*slot+(slot-bw)/2, bh=(v/maxY)*dh;
+      el+=`<rect x="${x}" y="${padY+dh-bh}" width="${bw}" height="${bh}" rx="4" fill="${bars.color}" opacity="0.6"/>`;
+      el+=`<text x="${x+bw/2}" y="${padY+dh-bh-5}" fill="#a9bdd6" font-size="10" font-weight="700" text-anchor="middle">${v}</text>`;
+      lbl+=`<text x="${x+bw/2}" y="${h-3}" fill="#aab9b1" font-size="10.5" text-anchor="middle">${labels[i]}</text>`;
+    });
+    let d='', dots='', vt='';
+    line.data.forEach((v,i)=>{
+      const cx=padX+i*slot+slot/2, cy=ys(v*line.scale);
+      d+=(d?' L':'M')+` ${cx} ${cy}`;
+      dots+=`<circle cx="${cx}" cy="${cy}" r="3.5" fill="${line.color}" stroke="#2b3733" stroke-width="2"/>`;
+      vt+=`<text x="${cx}" y="${cy-9}" fill="${line.color}" font-size="10" font-weight="800" text-anchor="middle">${line.lab[i]}</text>`;
+    });
+    el+=`<path d="${d}" stroke="${line.color}" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`+dots+vt;
+    $(id).innerHTML=`<svg viewBox="0 0 ${w} ${h}" width="100%" height="100%" preserveAspectRatio="none">${el}${lbl}</svg>`;
+  }
+  function donutChart(id, segs, centerLabel) {
+    const w=560, h=210, cx=120, cy=105, R=76, r=45;
+    const total=segs.reduce((s,x)=>s+x.v,0);
+    let a0=-Math.PI/2, paths='', pcts='';
+    segs.forEach(s=>{
+      const frac=s.v/total, a1=a0+frac*2*Math.PI-0.02, large=frac>0.5?1:0;
+      const x0=cx+R*Math.cos(a0), y0=cy+R*Math.sin(a0), x1=cx+R*Math.cos(a1), y1=cy+R*Math.sin(a1);
+      const xi1=cx+r*Math.cos(a1), yi1=cy+r*Math.sin(a1), xi0=cx+r*Math.cos(a0), yi0=cy+r*Math.sin(a0);
+      paths+=`<path d="M ${x0} ${y0} A ${R} ${R} 0 ${large} 1 ${x1} ${y1} L ${xi1} ${yi1} A ${r} ${r} 0 ${large} 0 ${xi0} ${yi0} Z" fill="${s.c}" opacity="0.92"/>`;
+      const am=(a0+a1)/2;
+      pcts+=`<text x="${cx+(R+17)*Math.cos(am)}" y="${cy+(R+17)*Math.sin(am)+4}" fill="#f0f4f2" font-size="12.5" font-weight="800" text-anchor="middle">${Math.round(frac*100)}%</text>`;
+      a0=a1+0.02;
+    });
+    let leg='', ly0=52;
+    segs.forEach(s=>{
+      leg+=`<rect x="285" y="${ly0-11}" width="13" height="13" rx="3" fill="${s.c}"/>`;
+      leg+=`<text x="308" y="${ly0}" fill="#f0f4f2" font-size="14" font-weight="700">${s.n}</text>`;
+      leg+=`<text x="545" y="${ly0}" fill="#aab9b1" font-size="13" text-anchor="end">${fmt(s.v)}억 · ${Math.round(s.v/total*100)}%</text>`;
+      ly0+=34;
+    });
+    const center=`<text x="${cx}" y="${cy-6}" fill="#aab9b1" font-size="12" font-weight="700" text-anchor="middle">${centerLabel}</text>
+                  <text x="${cx}" y="${cy+16}" fill="#f0f4f2" font-size="17" font-weight="800" text-anchor="middle">${fmt(total)}억</text>`;
+    $(id).innerHTML=`<svg viewBox="0 0 ${w} ${h}" width="100%" height="100%">${paths}${pcts}${center}${leg}</svg>`;
+  }
+
+  /* ══════════ SPI 현장 상세 (클릭형) ══════════ */
+  function selectSPI(idx){
+    const D=DATA, SP=D.SPI, p=D.실적.현장[idx];
+    if(!p || !Array.isArray(p.SPI)) return;
+    document.querySelectorAll('.spi-row').forEach(el=>el.classList.remove('on'));
+    const row=$('spirow-'+idx); if(row) row.classList.add('on');
+
+    const 지수=p.SPI.reduce((a,b)=>a*b,1);
+    const lv=지수<SP.임계선?'danger':지수<SP.기준선?'warn':'ok';
+    const col={ok:'#8cb269',warn:'#ffad42',danger:'#ff6969'}[lv];
+    $('spd-title').textContent=p.이름;
+    $('spd-sub').textContent=`${p.부서} · ${p.공종} · 수주액 ${fmt(p.금액)}억 · 원가율 ${p.원가율.toFixed(1)}% · 이익률 ${p.이익률.toFixed(2)}%`;
+    setBadge('spd-badge',lv, lv==='ok'?'기준선 상회':lv==='warn'?'기준선 하회':'임계선 하회 — 통제 대상');
+
+    /* 항목별 등급 카드 */
+    let cards='';
+    SP.항목.forEach((it,i)=>{
+      const v=p.SPI[i];
+      const best=Math.max(...it.등급.map(g=>g.v));
+      const g=it.등급.find(x=>x.v===v) || {t:'—'};
+      const c = v>=best ? '#8cb269' : (v<=Math.min(...it.등급.map(x=>x.v)) ? '#ff6969' : '#ffad42');
+      cards+=`<div class="fac" style="border-color:${c}44;">`
+        +`<div class="fac-h"><span class="fac-no">${it.no}</span><span class="fac-nm">${it.이름}</span>`
+        +`<span class="fac-v" style="color:${c};">${v}</span></div>`
+        +`<div class="fac-d">${g.t}</div>`
+        +`<div class="fac-s">${it.설명}</div></div>`;
+    });
+
+    /* 곱셈식 */
+    const chain=p.SPI.map((v,i)=>{
+      const it=SP.항목[i], best=Math.max(...it.등급.map(g=>g.v));
+      const c = v>=best ? '#8cb269' : (v<=Math.min(...it.등급.map(x=>x.v)) ? '#ff6969' : '#ffad42');
+      return `<span class="ch-v" style="color:${c};border-color:${c}66;">${v}</span>`;
+    }).join('<span class="ch-x">×</span>');
+
+    /* 개선 여지 — 만점 대비 손실 배수 */
+    let losses=[];
+    SP.항목.forEach((it,i)=>{
+      const best=Math.max(...it.등급.map(g=>g.v));
+      if(p.SPI[i]<best) losses.push({이름:it.이름, no:it.no, 현재:p.SPI[i], 최고:best, 배수:best/p.SPI[i]});
+    });
+    losses.sort((a,b)=>b.배수-a.배수);
+    const 만점=SP.항목.reduce((a,it)=>a*Math.max(...it.등급.map(g=>g.v)),1);
+    let advice='';
+    if(losses.length){
+      const t=losses[0];
+      advice=`<div class="spd-adv"><strong>가장 크게 깎인 항목: ${t.no} ${t.이름}</strong>`
+        +` — ${t.현재} → ${t.최고} 개선 시 지수 ${지수.toFixed(4)} → ${(지수*t.배수).toFixed(4)}`
+        +`<br>전 항목 최고 등급 시 ${만점.toFixed(4)} · 현재는 만점의 ${(지수/만점*100).toFixed(0)}%</div>`;
+    } else {
+      advice=`<div class="spd-adv"><strong>전 항목 최고 등급</strong> — 이론상 최고 지수 ${만점.toFixed(4)} 달성</div>`;
+    }
+
+    /* 평가 기준표 — 이 현장이 받은 등급 칸에 하이라이트 */
+    const 최대등급=Math.max(...SP.항목.map(it=>it.등급.length));
+    let crit='<table class="crit-table"><thead><tr>'
+      + SP.항목.map(it=>`<th>${it.no} ${it.이름}</th>`).join('')
+      + '</tr></thead><tbody>';
+    for(let r=0;r<최대등급;r++){
+      crit+='<tr>'+SP.항목.map((it,i)=>{
+        const g=it.등급[r];
+        if(!g) return '<td class="empty">—</td>';
+        const hit = p.SPI[i]===g.v;
+        return `<td class="${hit?'hit-cell':''}"><span class="cv">${g.v}</span>${g.t}</td>`;
+      }).join('')+'</tr>';
+    }
+    crit+='</tbody></table>';
+
+    $('spd-body').innerHTML=
+       `<div class="fac-grid">${cards}</div>`
+      +`<div class="chain-box"><div class="tracker-title">지수 산출</div>`
+      +`<div class="chain">${chain}<span class="ch-x">=</span>`
+      +`<span class="ch-r" style="color:${col};border-color:${col};">${지수.toFixed(4)}</span></div>`
+      +`<div class="chain-note">SPI = ① × ② × ③ × ④ · 기준선 ${SP.기준선} · 임계선 ${SP.임계선}</div></div>`
+      +advice
+      +`<div class="chain-box"><div class="tracker-title">평가 기준표 — 이 현장이 받은 등급 표시</div>${crit}`
+      +`<div class="chain-note">${SP.하단주석||''}</div></div>`;
+  }
+
+  /* ══════════ 네비게이션 ══════════ */
+  const SUBS = {
+    1:[{id:'1-1',name:'1.1 수주 실적'},{id:'1-2',name:'1.2 수주 건전성'}],
+    2:[{id:'2-1',name:'2.1 수주잔고 적정성'},{id:'2-2',name:'2.2 수주잔고 추정'}],
+  };
+  function selectCat(c){
+    document.querySelectorAll('.cat-tab').forEach((el,i)=>el.classList.toggle('active',i===c-1));
+    const box=$('subtabs'); box.innerHTML='';
+    SUBS[c].forEach(s=>{ const b=document.createElement('div'); b.className='sub-tab'; b.textContent=s.name; b.id='tab-'+s.id; b.onclick=()=>selectSub(s.id); box.appendChild(b); });
+    selectSub(SUBS[c][0].id);
+  }
+  function renderDept(id){
+    const box=$('deptbar'); if(!box) return;
+    const d=(DATA.담당부서||{})[id];
+    if(!d){ box.innerHTML=''; return; }
+    const sup=(d.지원 && d.지원!=='—')
+      ? d.지원.split(',').map(x=>`<span class="dept-sup">${x.trim()}</span>`).join('')
+      : `<span class="dept-sup" style="opacity:.55;">없음</span>`;
+    box.innerHTML = `<span class="dept-lbl">담당 :</span>`
+      + `<span class="dept-main">${d.담당}</span>`
+      + `<span class="dept-sep"></span>`
+      + `<span class="dept-lbl">지원 :</span>${sup}`;
+  }
+  function selectSub(id){
+    document.querySelectorAll('.sub-tab').forEach(el=>el.classList.toggle('active',el.id==='tab-'+id));
+    document.querySelectorAll('.view').forEach(el=>el.classList.toggle('on',el.id==='v-'+id));
+    renderDept(id);
+  }
+
+  /* ══════════ 렌더링 (DATA → 화면) ══════════ */
+  function render(){
+    const D=DATA, mm=D.기준월;
+    const M_ALL=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+    const M_ACT=M_ALL.slice(0,mm);
+    $('hd-date').textContent = `${D.기준연도}년 ${mm}월 마감 기준`;
+    $('hd-title').textContent = D.헤더제목 || '01 수주 — 선행지표 대시보드';
+    $('hd-sub').textContent = '| ' + (D.헤더부제 || '');
+    [1,2].forEach(i=>{ $('cdesc-'+i).textContent = (D.대분류설명&&D.대분류설명[i])||''; });
+
+    /* ══════════ 1.1 수주 실적 ══════════ */
+    const R=D.실적, 공종=['인프라','건축','주택'];
+    const 확정={}, 예정={};
+    공종.forEach(k=>{ 확정[k]=0; 예정[k]=0; });
+    R.현장.forEach(p=>{ 확정[p.공종]=(확정[p.공종]||0)+p.금액; });
+    R.예정.forEach(p=>{ 예정[p.공종]=(예정[p.공종]||0)+p.금액; });
+    const 확정계=공종.reduce((a,k)=>a+확정[k],0);
+    const 예정계=공종.reduce((a,k)=>a+예정[k],0);
+    const 추정계=확정계+예정계;
+
+    /* 상단 숫자박스 — 누계계획 대비 진도 */
+    const 계획=R.연간계획||0, 누계계획=R.누계계획||0;
+    const 진도=누계계획?(확정계/누계계획*100):0;
+    const 부족=누계계획-확정계;
+    const 기준=R.진도기준||{주의:100,경보:90};
+    const 진도lv=!누계계획?'warn':진도>=기준.주의?'ok':진도>=기준.경보?'warn':'danger';
+    $('mix-sub').textContent=`${mm}월 누계 확정 ${fmt(확정계)}억 · 예정 ${fmt(예정계)}억`;
+    $('mix-n1').textContent=fmt(계획)+'억';
+    $('mix-l2').textContent=`${mm}월 누계계획`;
+    $('mix-n2').textContent=누계계획?fmt(누계계획)+'억':'—';
+    $('mix-n3').textContent=fmt(확정계)+'억';
+    $('mix-n4').textContent=누계계획?진도.toFixed(1)+'%':'—';
+    $('mix-box4').className='num-box '+진도lv;
+
+    /* 3층 막대 — 확정 / 예정 / 미확보 갭 (연간계획 = 100%) */
+    const 추정률=계획?(추정계/계획*100):0;
+    const 추정기준=R.추정기준||{주의:100,경보:90};
+    const 추정lv=추정률>=추정기준.주의?'ok':추정률>=추정기준.경보?'warn':'danger';
+    setBadge('mix-badge',추정lv,`연말 추정 ${추정률.toFixed(1)}%`);
+    const 갭=Math.max(계획-추정계,0);
+    const w=v=>계획?Math.max(v/계획*100,0):0;
+    const 잔여월=Math.max(12-mm,0);
+    $('mix-prog-title').textContent=
+      `연간계획 ${fmt(계획)}억 → 연말 추정 ${fmt(추정계)}억`
+      + (갭>0 ? `  ·  미확보 ${fmt(갭)}억 (잔여 ${잔여월}개월 · 월 ${fmt(Math.round(갭/(잔여월||1)))}억)` : '  ·  계획 초과 달성 전망');
+    $('mix-prog').innerHTML=
+       `<div class="stack3">`
+      +`<div class="seg s-fix" style="width:${w(확정계)}%;">실적 ${fmt(확정계)}</div>`
+      +`<div class="seg s-est" style="width:${w(예정계)}%;">${예정계?'예정 '+fmt(예정계):''}</div>`
+      +`<div class="seg s-gap" style="width:${w(갭)}%;">${갭?'미확보 '+fmt(갭):''}</div>`
+      +`<div class="planline" style="left:100%;"></div></div>`
+      +`<div class="stack-lgd"><span><i class="sw s-fix"></i>확정 실적</span><span><i class="sw s-est"></i>수주 예정</span>`
+      +`<span><i class="sw s-gap"></i>미확보</span><span><i class="sw s-pl"></i>연간계획선</span></div>`;
+
+    /* 공종별 연말 추정표 — 계획은 인프라/건축 2분류(주택은 건축에 포함) */
+    (function(){
+      const CP=R.공종계획||{};
+      const rows=[
+        {n:'인프라', 계획:CP.인프라||0, 확:확정.인프라, 예:예정.인프라},
+        {n:'건축',   계획:CP.건축||0,   확:확정.건축+확정.주택, 예:예정.건축+예정.주택, 주석:'주택 포함'},
+      ];
+      let h='<thead><tr><th>공종</th><th>연간계획</th><th>확정</th><th>예정</th><th>연말 추정</th><th>추정 달성률</th><th>갭</th><th style="text-align:center;">판정</th></tr></thead><tbody>';
+      rows.forEach(r=>{
+        const 추=r.확+r.예, 률=r.계획?추/r.계획*100:0, g=추-r.계획;
+        const lv=률>=추정기준.주의?'ok':률>=추정기준.경보?'warn':'danger';
+        const col={ok:'#8cb269',warn:'#ffad42',danger:'#ff6969'}[lv];
+        h+=`<tr class="${lv==='danger'?'hit':''}"><td>${r.n}${r.주석?`<span class="sub-note">${r.주석}</span>`:''}</td>`
+          +`<td>${fmt(r.계획)}억</td><td>${fmt(r.확)}억</td>`
+          +`<td style="${r.예?'':'color:#ff8f7a;font-weight:800;'}">${r.예?fmt(r.예)+'억':'없음'}</td>`
+          +`<td class="pos-now">${fmt(추)}억</td>`
+          +`<td style="color:${col};font-weight:800;">${률.toFixed(1)}%</td>`
+          +`<td style="color:${g<0?'#ff8f7a':'#a8d480'};">${g<0?'-':'+'}${fmt(Math.abs(Math.round(g)))}억</td>`
+          +`<td style="text-align:center;"><span class="pos-dot" style="background:${col};"></span></td></tr>`;
+      });
+      const 총률=계획?추정계/계획*100:0, 총갭=추정계-계획;
+      const tcol={ok:'#8cb269',warn:'#ffad42',danger:'#ff6969'}[추정lv];
+      h+=`<tr class="sumrow"><td>전사</td><td>${fmt(계획)}억</td><td>${fmt(확정계)}억</td><td>${fmt(예정계)}억</td>`
+        +`<td class="pos-now">${fmt(추정계)}억</td><td style="color:${tcol};font-weight:800;">${총률.toFixed(1)}%</td>`
+        +`<td style="color:${총갭<0?'#ff8f7a':'#a8d480'};">${총갭<0?'-':'+'}${fmt(Math.abs(Math.round(총갭)))}억</td>`
+        +`<td style="text-align:center;"><span class="pos-dot" style="background:${tcol};"></span></td></tr></tbody>`;
+      $('est-table').innerHTML=h;
+    })();
+
+    /* 도넛 — 실적 3분류 */
+    const 도넛=[{n:'인프라',v:확정.인프라,c:'#8cb269'},{n:'건축',v:확정.건축,c:'#ffad42'},{n:'주택',v:확정.주택,c:'#7e93ab'}];
+    donutChart('svg-mixdonut',도넛.filter(x=>x.v>0),'누계 실적');
+    $('mix-note').textContent=R.현장주석||'';
+
+    /* 동종업계 포지션 */
+    renderPos(D, 확정계, 확정);
+
+    /* 현장별 수주 실적 · 예정 표 */
+    (function(){
+      const 경보=R.원가율_경보||100, 주의=R.원가율_주의||95;
+      let h='<thead><tr><th>부서</th><th>공종</th><th style="text-align:left;">공사명</th><th>수주액</th><th>비중</th><th>원가율</th><th>이익</th><th>이익률</th></tr></thead><tbody>';
+      const S=[...R.현장].sort((a,b)=>b.금액-a.금액);
+      S.forEach(p=>{
+        const cr=p.원가율, crCol=cr>=경보?'#ff6969':cr>=주의?'#ffad42':'#8cb269';
+        const pr=p.이익률, prCol=pr<0?'#ff6969':pr<5?'#ffad42':'#8cb269';
+        h+=`<tr class="${cr>=경보?'hit':''}"><td>${p.부서}</td><td>${p.공종}</td><td style="text-align:left;">${p.이름}</td>`
+          +`<td class="pos-now">${fmt(p.금액)}억</td>`
+          +`<td style="color:var(--sub);">${(p.금액/확정계*100).toFixed(1)}%</td>`
+          +`<td style="color:${crCol};font-weight:800;">${cr.toFixed(1)}%</td>`
+          +`<td style="color:${p.이익<0?'#ff8f7a':'#f0f4f2'};">${p.이익<0?'-':''}${fmt(Math.abs(p.이익))}억</td>`
+          +`<td style="color:${prCol};font-weight:800;">${pr.toFixed(2)}%</td></tr>`;
+      });
+      h+=`<tr class="sumrow"><td colspan="3">확정 소계 (${S.length}건)</td><td class="pos-now">${fmt(확정계)}억</td><td colspan="4"></td></tr>`;
+      h+=`<tr class="divrow"><td colspan="8">수주 예정 (주간업무 추정) — 계약 확정 전</td></tr>`;
+      [...R.예정].sort((a,b)=>b.금액-a.금액).forEach(p=>{
+        h+=`<tr class="dim"><td>—</td><td>${p.공종}</td><td style="text-align:left;">${p.이름}<span class="sub-note">${p.비고||''}</span></td>`
+          +`<td class="pos-now">${fmt(p.금액)}억</td><td colspan="4" style="text-align:left;color:var(--sub);">${p.단계||''}</td></tr>`;
+      });
+      h+=`<tr class="sumrow"><td colspan="3">예정 소계 (${R.예정.length}건)</td><td class="pos-now">${fmt(예정계)}억</td><td colspan="4"></td></tr></tbody>`;
+      $('site-table').innerHTML=h;
+      $('site-sub').textContent=`확정 ${S.length}건 · 예정 ${R.예정.length}건 | 수주액 순`;
+      const 손실=S.filter(p=>p.원가율>=경보).length;
+      setBadge('site-badge', 손실?'danger':'ok', 손실?`원가율 ${경보}% 초과 ${손실}건`:'원가율 정상');
+      $('site-note').textContent=(R.현장주석||'')+'  '+(R.예정주석||'');
+    })();
+
+    /* ══════════ 1.2 수주 건전성 (SPI) ══════════ */
+    const SP=D.SPI;
+    const spiSites=R.현장.filter(p=>Array.isArray(p.SPI));
+    spiSites.forEach(p=>{ p._idx=p.SPI.reduce((a,b)=>a*b,1); });
+    const spiSum=spiSites.reduce((a,p)=>a+p.금액,0);
+    const spiAvg=spiSum?spiSites.reduce((a,p)=>a+p.금액*p._idx,0)/spiSum:0;
+    const spiLv = spiAvg>=SP.기준선?'ok':spiAvg>=SP.임계선?'warn':'danger';
+    const 임계현장=spiSites.filter(p=>p._idx<SP.임계선);
+    const 임계액=임계현장.reduce((a,p)=>a+p.금액,0);
+
+    $('spi-sub').textContent=`${SP.풀네임} | ${SP.부제}`;
+    $('spi-n1').textContent=spiAvg.toFixed(4);
+    $('spi-n2').textContent=SP.기준선.toFixed(4);
+    $('spi-n3').textContent=SP.임계선.toFixed(4);
+    $('spi-n4').textContent=임계현장.length+'건';
+    $('spi-box1').className='num-box '+spiLv;
+    $('spi-box4').className='num-box '+(임계현장.length?'danger':'ok');
+    setBadge('spi-badge',spiLv, spiLv==='ok'?'기준선 상회':spiLv==='warn'?'기준선 하회':'임계선 하회');
+    setMsg('spi-msg', 임계현장.length?'danger':spiLv,
+      임계현장.length
+        ? `<strong>[경보]</strong> 전사 지수 ${spiAvg.toFixed(4)}로 기준선(${SP.기준선}) 상회하나, 임계선(${SP.임계선}) 미만 현장 ${임계현장.length}건·${fmt(임계액)}억 발생 — 해당 현장 수주 관리·통제 대상. 전사 평균에 가려진 개별 리스크 점검 필요`
+        : `<strong>[정상]</strong> 전사 지수 ${spiAvg.toFixed(4)} — 기준선(${SP.기준선}) 상회. 임계선 미만 현장 없음`);
+    $('spi-note').textContent=SP.하단주석||'';
+
+    /* 지수 눈금자 */
+    (function(){
+      const lo=SP.최소값, hi=SP.최대값, span=hi-lo;
+      const pos=v=>Math.max(0,Math.min(100,(v-lo)/span*100));
+      let ticks='';
+      spiSites.forEach(p=>{ ticks+=`<i class="sc-dot" style="left:${pos(p._idx)}%;background:${p._idx<SP.임계선?'#ff6969':p._idx<SP.기준선?'#ffad42':'#8cb269'};"></i>`; });
+      $('spi-scale').innerHTML=
+         `<div class="scale-wrap">`
+        +`<div class="scale-bar"><div class="sc-zone" style="left:0;width:${pos(SP.임계선)}%;"></div>`
+        +`<i class="sc-line" style="left:${pos(SP.임계선)}%;background:#ff6969;"></i>`
+        +`<i class="sc-line" style="left:${pos(SP.기준선)}%;background:#7e93ab;"></i>`
+        +ticks
+        +`<i class="sc-now" style="left:${pos(spiAvg)}%;"></i></div>`
+        +`<div class="scale-lbl"><span>${lo.toFixed(4)}</span><span style="color:#ff8f7a;">임계 ${SP.임계선}</span>`
+        +`<span style="color:#c7d6e6;">기준 ${SP.기준선}</span><span>${hi.toFixed(4)}</span></div></div>`;
+    })();
+
+    /* 현장별 지수 리스트 (클릭형) */
+    (function(){
+      const L=[...spiSites].sort((a,b)=>a._idx-b._idx);
+      $('spi-list').innerHTML=L.map((p,i)=>{
+        const lv=p._idx<SP.임계선?'danger':p._idx<SP.기준선?'warn':'ok';
+        const ico={ok:'●',warn:'●',danger:'🚨'}[lv];
+        const col={ok:'#8cb269',warn:'#ffad42',danger:'#ff6969'}[lv];
+        return `<div class="spi-row ${lv}" onclick="selectSPI(${R.현장.indexOf(p)})" id="spirow-${R.현장.indexOf(p)}">`
+          +`<span class="spi-ico" style="color:${col};">${ico}</span>`
+          +`<span class="spi-nm">${p.이름}</span>`
+          +`<span class="spi-amt">${fmt(p.금액)}억</span>`
+          +`<span class="spi-val" style="color:${col};">${p._idx.toFixed(4)}</span></div>`;
+      }).join('');
+      window.__SPI_FIRST = R.현장.indexOf(L[0]);
+    })();
+    selectSPI(window.__SPI_FIRST);
+
+    /* ── 2.1 / 2.2 잔고 (부문 공통 렌더 함수) ── */
+    function renderBal(K, ids){
+      const 적정=K.목표매출*K.공사기간;
+      const 현재=K.월별잔고[K.월별잔고.length-1], 전월=K.월별잔고[K.월별잔고.length-2];
+      const 증감=현재-전월, 부족=적정-현재;
+      $(ids.sub).textContent=`목표매출 ${fmt(K.목표매출)}억 × 공사기간 ${K.공사기간}년 = 적정잔고 ${fmt(적정)}억`;
+      $(ids.n1).textContent=fmt(전월)+'억';
+      $(ids.n2).textContent=(증감>=0?'+':'')+fmt(증감)+'억';
+      $(ids.n3).textContent=fmt(현재)+'억';
+      if(부족>0){
+        setBadge(ids.badge,'danger','부족');
+        $(ids.pnl).style.borderTop='5px solid var(--miss)';
+        $(ids.b4).className='num-box danger live'; $(ids.l4).textContent='적정 대비 부족분'; $(ids.n4).textContent=fmt(부족)+'억';
+        setMsg(ids.msg,'danger',`<strong>[센서 경보]</strong> `+T(K.경보문구,{적정:fmt(적정),비율:(현재/적정*100).toFixed(1),부족:fmt(부족),공사기간:K.공사기간}));
+      } else {
+        setBadge(ids.badge,'ok','충족');
+        $(ids.pnl).style.borderTop='5px solid var(--actual)';
+        $(ids.b4).className='num-box ok'; $(ids.l4).textContent='적정 대비'; $(ids.n4).textContent='+'+fmt(-부족)+'억';
+        setMsg(ids.msg,'ok',`<strong>[정상]</strong> `+T(K.정상문구,{적정:fmt(적정),비율:(현재/적정*100).toFixed(1),부족:fmt(-부족),공사기간:K.공사기간}));
+      }
+      $(ids.lg).textContent=`╌╌ 적정 수주잔고(${fmt(적정)}억)`;
+      lineChart(ids.chart,[
+        {data:K.월별잔고.map(()=>적정), color:'#7e93ab', dash:'5,5'},
+        {data:K.월별잔고, color:'#8cb269', dots:true, width:3, vlab:true},
+      ], 적정*1.15, M_ACT);
+      return {적정,현재};
+    }
+    function renderProj(K, ids, base){
+      /* 추정 궤적 자동 계산: 현재잔고 - 월기성 + 수주예정 */
+      const traj=[base.현재]; let bal=base.현재;
+      K.수주예정.forEach(nw=>{ bal = bal - K.월평균기성 + nw; traj.push(bal); });
+      const 연말=traj[traj.length-1], 필요=Math.max(0, base.적정-연말);
+      const 수주합=K.수주예정.reduce((a,b)=>a+b,0);
+      const lv = 필요<=0?'ok':필요>=3000?'danger':'warn';
+      setBadge(ids.badge, lv, lv==='ok'?'적정 유지':lv==='warn'?'연말 이탈 예상':'이탈 확대');
+      $(ids.pnl).style.borderTop='5px solid var(--'+(lv==='ok'?'actual':lv==='warn'?'amber':'miss')+')';
+      $(ids.sub).textContent=K.전망메모+` (월 기성 ${fmt(K.월평균기성)}억)`;
+      $(ids.l1).textContent=`현 잔고 (${mm}월)`;
+      $(ids.n1).textContent=fmt(base.현재)+'억';
+      $(ids.n2).textContent=fmt(연말)+'억';
+      $(ids.n3).textContent=fmt(필요)+'억';
+      const vars = {수주합:fmt(수주합), 적정:fmt(base.적정), 필요:fmt(필요), 기성:fmt(K.월평균기성), 연말:fmt(연말)};
+      if (필요 <= 0) {
+        setMsg(ids.msg, 'ok', `<strong>[정상]</strong> ${T(K.전망정상문구||K.전망문구, vars)}`);
+        $(ids.b2).className='num-box ok'; $(ids.b3).className='num-box ok';
+      } else {
+        setMsg(ids.msg, lv, `<strong>[${lv==='danger'?'센서 경보':'주의'}]</strong> ${T(K.전망문구, vars)}`);
+        $(ids.b2).className='num-box '+(lv==='danger'?'danger':'warn');
+        $(ids.b3).className='num-box '+(lv==='danger'?'danger live':'warn');
+      }
+      /* 차트: 실적(1~기준월) + 추정(기준월~12월) */
+      const act=[...K.월별잔고, ...Array(12-mm).fill(null)];
+      const proj=Array(12).fill(null);
+      traj.forEach((v,i)=>{ proj[mm-1+i]=v; });
+      lineChart(ids.chart,[
+        {data:Array(12).fill(base.적정), color:'#7e93ab', dash:'5,5'},
+        {data:proj, color:'#ff6969', dash:'4,4', dots:true, vlab:true, below:true, vskip:1},
+        {data:act, color:'#8cb269', dots:true, width:3, vlab:true},
+      ], base.적정*1.15, M_ALL);
+    }
+    const bi=renderBal(D.잔고_인프라,{sub:'bali-sub',badge:'bali-badge',pnl:'pnl-bal-i',n1:'bali-n1',n2:'bali-n2',n3:'bali-n3',b4:'bali-b4',l4:'bali-l4',n4:'bali-n4',msg:'bali-msg',lg:'bali-lg',chart:'svg-bal-infra'});
+    const ba=renderBal(D.잔고_건축,{sub:'bala-sub',badge:'bala-badge',pnl:'pnl-bal-a',n1:'bala-n1',n2:'bala-n2',n3:'bala-n3',b4:'bala-b4',l4:'bala-l4',n4:'bala-n4',msg:'bala-msg',lg:'bala-lg',chart:'svg-bal-arch'});
+    renderProj(D.잔고_인프라,{badge:'proji-badge',pnl:'pnl-proj-i',sub:'proji-sub',l1:'proji-l1',n1:'proji-n1',n2:'proji-n2',n3:'proji-n3',b2:'proji-b2',b3:'proji-b3',msg:'proji-msg',chart:'svg-proj-infra'}, bi);
+    renderProj(D.잔고_건축,{badge:'proja-badge',pnl:'pnl-proj-a',sub:'proja-sub',l1:'proja-l1',n1:'proja-n1',n2:'proja-n2',n3:'proja-n3',b2:'proja-b2',b3:'proja-b3',msg:'proja-msg',chart:'svg-proj-arch'}, ba);
+
+    /* ── 대분류 상태 자동 집계 ── */
+    const rankL={ok:0,warn:1,danger:2};
+    let catLv1='ok';
+    [추정lv, spiLv, 임계현장.length?'danger':'ok'].forEach(l=>{ if(rankL[l]>rankL[catLv1]) catLv1=l; });
+    const catTxt1 = catLv1==='danger'?'경보':(catLv1==='warn'?'주의':'정상');
+    setCatStatus('cst-1', catLv1, catTxt1);
+    const balDanger = (bi.적정-bi.현재>0)||(ba.적정-ba.현재>0);
+    setCatStatus('cst-2', balDanger?'danger':'ok', balDanger?'경보 1':'정상');
+  }
+
+  // DATA 로드 보장 후 렌더 (외부 data.js 로딩 타이밍 방어)
+  function initDashboard(){
+    if(typeof DATA==='undefined'){ setTimeout(initDashboard, 50); return; }
+    render();
+    selectCat(1);
+  }
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded', initDashboard);
+  } else {
+    initDashboard();
+  }
+</script>
+</body>
+</html>
