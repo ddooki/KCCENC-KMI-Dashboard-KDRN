@@ -161,6 +161,25 @@ body{background:var(--bg);color:var(--text);font-family:'Pretendard','Malgun Got
 .act::before{content:'☐';color:var(--amber);font-size:14px;flex:none;}
 .act em{font-style:normal;color:var(--warnc);font-weight:800;}
 .todo .none{font-size:14px;color:var(--sub);font-weight:700;}
+.q-switcher{display:flex;align-items:center;gap:8px;margin:10px 0 14px;flex-wrap:wrap;}
+.q-switcher .q-lbl{font-size:12px;font-weight:800;color:var(--sub);}
+.q-btn{font-family:inherit;font-size:12.5px;font-weight:800;color:var(--sub);background:var(--deep);border:1px solid var(--border);border-radius:8px;padding:5px 14px;cursor:pointer;transition:all .15s ease;}
+.q-btn:hover{color:var(--text);border-color:var(--sub);}
+.q-btn.active{color:#241c0c;background:var(--amber);border-color:var(--amber);}
+.q-btn .now-tag{font-size:10px;padding:1px 5px;border-radius:4px;background:rgba(0,0,0,0.25);margin-left:4px;}
+.matrix-toggle-btn{margin-top:14px;width:100%;font-family:inherit;font-size:13px;font-weight:800;color:var(--amber);background:rgba(255,173,66,0.08);border:1px dashed rgba(255,173,66,0.4);border-radius:10px;padding:10px 16px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s ease;}
+.matrix-toggle-btn:hover{background:rgba(255,173,66,0.16);}
+.matrix-wrap{margin-top:12px;overflow-x:auto;}
+.matrix-tbl{width:100%;border-collapse:collapse;font-size:12.5px;text-align:left;}
+.matrix-tbl th,.matrix-tbl td{padding:10px 12px;border:1px solid var(--border);vertical-align:top;line-height:1.55;}
+.matrix-tbl th{background:var(--deep);color:var(--sub);font-weight:800;text-align:center;}
+.matrix-tbl td.stg-cell{font-weight:800;text-align:center;vertical-align:middle;width:60px;}
+.matrix-tbl td.stg-cell.warn{color:var(--warnc);background:rgba(255,173,66,0.06);}
+.matrix-tbl td.stg-cell.danger{color:var(--dangerc);background:rgba(255,105,105,0.06);}
+.matrix-tbl td.kind-cell{font-weight:800;text-align:center;vertical-align:middle;width:70px;color:var(--text);background:var(--deep);}
+.matrix-tbl td.q-cell{font-weight:600;color:var(--sub);}
+.matrix-tbl td.q-cell.now-q{background:rgba(255,173,66,0.1);color:var(--text);border:1.5px solid var(--amber);}
+.matrix-tbl td.q-cell.now-q b{color:var(--amber);}
 .next{margin-top:13px;border-top:1px dashed var(--border);padding-top:13px;}
 .next .cap{font-size:12px;font-weight:800;color:var(--sub);margin-bottom:7px;}
 .next .row{font-size:13px;color:var(--sub);line-height:1.6;font-weight:600;} .next .row b{color:var(--text);}
@@ -262,8 +281,18 @@ const IND={
  diag:'연말 추정 <b>24,547억</b> — 계획 대비 <span class="dn">▼3,032억(11.0%) 부족</span>',
  actions:{
   ok:{main:[['공통','월별 수주 실적·수주예정 정기 점검']],sup:[]},
-  warn:{main:[['공통','부족 공종 <em>수주예정 보강 계획 수립</em> · 입찰 참여 확대 검토']],sup:[['회계','연말 추정 수주액 재검증']]},
-  danger:{main:[['인프라 수주','<em>공공입찰 참여 기준 전면 재검토</em> — 입찰 참여 확대 (하반기)'],['건축 수주','<em>수주예정 4건(6,747억) 계약 확정</em> 집중 관리']],sup:[['회계','연말 추정 재산정 · 사업계획 영향 보고']]}},
+  warn:{main:[['인프라','진행 중 PQ·입찰 건 외부영업 관리 강화로 낙찰 가능성 제고'],['건축','○○팀(수주계획 미달 최하위 팀) 수주계획 미달 : 달성방안 재수립']],sup:[['회계','연말 추정 수주액 재검증']]},
+  danger:{main:[['인프라','저조 원인 진단 TF 가동 : 목표 재설정 및 월별 수주 로드맵 재수립'],['건축','상반기 수주 격차 분석 후 우선협상대상자 0건(0,000억) 계약 클로징 총력']],sup:[['회계','연말 추정 재산정 · 사업계획 영향 보고']]}},
+ qActions:{
+  warn:{
+   infra:['진행 중 PQ·입찰 건 외부영업 관리 강화로 낙찰 가능성 제고','하반기 유망 공공공사 사전 검토 및 참여 준비','목표 달성률 추이 점검 및 보완 물량 발굴','목표 달성을 위한 Action Plan 재점검 및 차년도 공공발주계획 전수조사 등 참여 가능 물량 재산정'],
+   arch:['확보된 파이프라인 PJ 우선순위화 및 수주확률별 관리','○○팀(수주계획 미달 최하위 팀) 수주계획 미달 : 달성방안 재수립','수주확정 0건(0,000억) 계약 확정 : 집중관리','계약 임박 PJ 연내 계약체결 마감 및 차년도 1분기 수주 확정 물량 선확보']
+  },
+  danger:{
+   infra:['연간 공공발주계획(조달청·LH·도로공사·철도공단) 전수조사 및 참여 가능 물량 재산정','저조 원인 진단 TF 가동 : 목표 재설정 및 월별 수주 로드맵 재수립','민간토목 발주공사(화력발전 시설전환산업단지 조성 등) 발굴','조달청 공공입찰 참여기준 재검토 : 입찰참여 확대'],
+   arch:['신규 발주처(디벨로퍼·시행사) 접촉 및 파이프라인 신규 구축','상반기 수주 격차 분석 후 우선협상대상자 0건(0,000억) 계약 클로징 총력','인허가/토지확보(명도) 완료 및 즉시착공 가능 신규PJ 선별수주','계약 임박 PJ 연내 계약체결 마감 : 일 단위 진척관리']
+  }
+ },
  ev:'연간계획 <b>27,579억</b> · 누계 실적 17,800억(64.5%) · 연말추정 24,547억(89%)<br>인프라 ▼3,820 전액 미달 · 건축 +788 초과 전망 — 부족분은 사실상 건축이 보완하는 구조',
  links:['su-21','gj-11'],sim:true,embed:[['suju','수주 원본 — 1.1 수주 실적','S','1-1']]},
 'su-12':{dept:'suju',no:'1.2',name:'수주 건전성 (SPI)',sub:'수주 건전성 지수 · 전사 가중',team:{d:'영업기획',s:['회계']},
@@ -473,6 +502,7 @@ function miniGauge(d){
     zones=`<div class="z" style="width:${a}%;background:${ZC.danger}"></div><div class="z" style="width:${b-a}%;background:${ZC.warn}"></div><div class="z" style="flex:1;background:${ZC.ok}"></div>`; }
   return `<div class="mini-g">${zones}<div class="mk" style="left:${pv}%"></div></div>`;
 }
+function drawTodoOld(d, st, v){ return; }
 function rowVis(d){
   if(d.type==='gauge') return miniGauge(d);
   if(d.type==='count') return `<span class="mini-note">⚑ ${strip(d.rule)}</span>`;
@@ -572,6 +602,94 @@ function renderHome(){
   h+=`</div>`;
   h+=renderPriority(all);
   $('view').innerHTML=h; setCrumb([]);
+}
+let curQ = 2;
+function selectQ(qNum){
+  curQ = qNum;
+  const d = IND[curInd];
+  if(d) drawTodo(d, stageOf(d, parseFloat($('slider')?$('slider').value:d.value)), parseFloat($('slider')?$('slider').value:d.value));
+}
+function toggleMatrix(){
+  const el = $('matrix-sec');
+  if(!el) return;
+  const isOpen = el.style.display !== 'none';
+  el.style.display = isOpen ? 'none' : 'block';
+  const btn = $('matrix-btn-lbl');
+  if(btn) btn.innerHTML = isOpen ? '📋 전체 연간(1Q~4Q) 액션플랜 로드맵 매트릭스 보기 ▾' : '📋 전체 연간(1Q~4Q) 액션플랜 로드맵 매트릭스 닫기 ▴';
+}
+
+function drawTodo(d, st, v){
+  const title = st==='ok'?'정상 — 정기 관리': st==='warn'?'주의 — 지금 해야 할 조치': st==='danger'?'경보 — 즉각 대응 트리거 발동':'도구 — 가동 조건';
+  let g = '';
+  
+  if(d.qActions && (st==='warn' || st==='danger')){
+    const qData = d.qActions[st];
+    const qIdx = curQ - 1;
+    const qSw = `<div class="q-switcher"><span class="q-lbl">분기별 실행계획 :</span>${[1,2,3,4].map(q=>`<button class="q-btn ${curQ===q?'active':''}" onclick="selectQ(${q})">${q}분기${q===2?'<span class="now-tag">현재</span>':''}</button>`).join('')}</div>`;
+    
+    const rows = [
+      ['인프라 수주', qData.infra[qIdx] || '—'],
+      ['건축 수주', qData.arch[qIdx] || '—']
+    ].map(([t,a])=>`<div class="ts-row"><span class="ts-tag">${t}</span><div class="act">${a}</div></div>`).join('');
+    
+    g += qSw;
+    g += `<div class="todo-sec mainS"><div class="ts-hd">담당 ${d.team.d} — ${curQ}분기 영역별 실행과제</div>${rows}</div>`;
+    if(d.actions[st] && d.actions[st].sup && d.actions[st].sup.length){
+      const supRows = d.actions[st].sup.map(([t,a])=>`<div class="ts-row"><span class="ts-tag">${t}</span><div class="act">${a}</div></div>`).join('');
+      g += `<div class="todo-sec supS"><div class="ts-hd">지원</div>${supRows}</div>`;
+    }
+    
+    const mRows = ['warn','danger'].map(sKey=>{
+      const sLabel = sKey==='warn'?'주의':'경보';
+      const sData = d.qActions[sKey];
+      return `<tr>
+        <td rowspan="2" class="stg-cell ${sKey}">${sLabel}</td>
+        <td class="kind-cell">인프라</td>
+        ${[0,1,2,3].map(i=>`<td class="q-cell ${i===1?'now-q':''}">${i===1?'<b>[현재] </b>':''}${sData.infra[i]}</td>`).join('')}
+      </tr>
+      <tr>
+        <td class="kind-cell">건축</td>
+        ${[0,1,2,3].map(i=>`<td class="q-cell ${i===1?'now-q':''}">${i===1?'<b>[현재] </b>':''}${sData.arch[i]}</td>`).join('')}
+      </tr>`;
+    }).join('');
+    
+    const mTable = `<button class="matrix-toggle-btn" onclick="toggleMatrix()"><span id="matrix-btn-lbl">📋 전체 연간(1Q~4Q) 액션플랜 로드맵 매트릭스 보기 ▾</span></button>
+    <div id="matrix-sec" class="matrix-wrap" style="display:none;">
+      <table class="matrix-tbl">
+        <thead>
+          <tr>
+            <th>단계</th>
+            <th>공종</th>
+            <th>1분기 (1Q)</th>
+            <th style="color:var(--amber);background:rgba(255,173,66,0.15);">2분기 (2Q·현재)</th>
+            <th>3분기 (3Q)</th>
+            <th>4분기 (4Q)</th>
+          </tr>
+        </thead>
+        <tbody>${mRows}</tbody>
+      </table>
+    </div>`;
+    
+    g += mTable;
+  } else {
+    const A = d.actions[st] || {main:[],sup:[]};
+    const rows = arr => arr.map(([t,a])=>`<div class="ts-row"><span class="ts-tag">${t}</span><div class="act">${a}</div></div>`).join('');
+    const _hasArea = (A.main||[]).some(r=>r[0]!=='공통');
+    g += `<div class="todo-sec mainS"><div class="ts-hd">담당 ${d.team.d}${_hasArea?' — 영역별 조치':''}</div>${(A.main&&A.main.length)?rows(A.main):'<div class="none">—</div>'}</div>`;
+    if(A.sup&&A.sup.length) g+=`<div class="todo-sec supS"><div class="ts-hd">지원</div>${rows(A.sup)}</div>`;
+  }
+  
+  let next = '';
+  if(st==='ok'||st==='warn'){
+    const ns = st==='ok'?'warn':'danger';
+    const nd = d.actions[ns];
+    if(nd&&nd.main&&nd.main.length){
+      const bound = d.type==='gauge' ? (st==='ok'?(d.invert?`${d.tick.ok.split(' ').pop()} 초과 시`:`${d.tick.ok.split(' ').pop()} 미만 시`):(d.invert?`${d.tick.danger.split(' ').pop()} 초과 시`:`${d.tick.danger.split(' ').pop()} 미만 시`)) : '다음 단계 진입 시';
+      next=`<div class="next"><div class="cap">다음 단계 예고</div><div class="row"><b>${bound} [${STXT[ns]}]</b> — ${strip(nd.main[0][1])} 등 ${ns==='danger'?'즉각 발동':'개시'}</div></div>`;
+    }
+  }
+  $('todo').className='todo '+st;
+  $('todo').innerHTML=`<div class="todo-hd"><span class="t">${title}</span><span class="auto">현재값 기준 자동 판정 · 데이터 갱신 시 자동 변경</span></div>${g}${next}`;
 }
 let prioMode='ind';
 function renderPriority(all){
@@ -718,7 +836,7 @@ function drawGauge(d,v){
   $('gauge').innerHTML=`<div class="g-track">${zones}</div>${ticks}
     <div class="g-cur" style="left:${pv}%"><div class="v" style="color:${SCOL[st]}">${d.fmt(v)}</div><div class="arrow"></div></div>`;
 }
-function drawTodo(d, st, v){
+function drawTodoOld(d, st, v){
   const A=d.actions[st]||{main:[],sup:[]};
   const title = st==='ok'?'정상 — 정기 관리': st==='warn'?'주의 — 지금 해야 할 조치': st==='danger'?'경보 — 즉각 대응 트리거 발동':'도구 — 가동 조건';
   const rows=arr=>arr.map(([t,a])=>`<div class="ts-row"><span class="ts-tag">${t}</span><div class="act">${a}</div></div>`).join('');
