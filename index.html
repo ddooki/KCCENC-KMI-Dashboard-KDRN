@@ -884,8 +884,9 @@ function grpSwitch(btn,k){
   if(f){
     const doc=getDoc(k);
     if(doc){
+      f.removeAttribute('srcdoc');
       f.addEventListener('load',()=>{ try{ if(f.dataset.mode) f.contentWindow.__setMode(f.dataset.mode); }catch(e){} },{once:true});
-      f.srcdoc=doc;
+      setTimeout(()=>{ f.srcdoc=doc; }, 10);
     }
   }
   const pick=document.getElementById('grp-pick');
