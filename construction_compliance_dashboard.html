@@ -236,7 +236,7 @@
   .sector-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
   .sector-tab {
     font-family: 'Noto Sans KR', sans-serif; font-size: 13px; font-weight: 600;
-    background: linear-gradient(155deg, #122034, #0c1728);
+    background: linear-gradient(155deg, #242e2b, #1a221f);
     border: 1px solid rgba(255,255,255,0.08); color: var(--muted);
     box-shadow: 4px 4px 10px rgba(0,0,0,0.5), -3px -3px 8px rgba(255,255,255,0.02);
     padding: 8px 16px; border-radius: 4px; cursor: pointer;
@@ -264,7 +264,7 @@
 
   .site-row {
     display: grid; grid-template-columns: 32px 1fr 180px 110px 96px; align-items: center; gap: 12px;
-    background: linear-gradient(155deg, #122034, #0c1728);
+    background: linear-gradient(155deg, #242e2b, #1a221f);
     border: 1px solid rgba(255,255,255,0.05);
     border-left: 4px solid var(--muted);
     box-shadow: 6px 6px 14px rgba(0,0,0,0.5), -4px -4px 10px rgba(255,255,255,0.02);
@@ -454,7 +454,7 @@
   .review-month-hint { font-size: 11px; color: var(--muted); }
   .division-tab {
     font-family: 'Noto Sans KR', sans-serif; font-size: 13px; font-weight: 700;
-    background: linear-gradient(155deg, #122034, #0c1728);
+    background: linear-gradient(155deg, #242e2b, #1a221f);
     border: 1px solid rgba(255,255,255,0.08); color: var(--muted);
     box-shadow: 6px 6px 14px rgba(0,0,0,0.5), -4px -4px 10px rgba(255,255,255,0.02);
     padding: 7px 18px; border-radius: 6px; cursor: pointer;
@@ -488,7 +488,7 @@
   .collapse-toggle {
     width: 100%; display: flex; align-items: center; justify-content: space-between;
     font-family: 'Noto Sans KR', sans-serif; font-size: 14px; font-weight: 700; color: var(--text);
-    background: linear-gradient(155deg, #122034, #0c1728);
+    background: linear-gradient(155deg, #242e2b, #1a221f);
     border: 1px solid rgba(255,255,255,0.08);
     box-shadow: 6px 6px 14px rgba(0,0,0,0.5), -4px -4px 10px rgba(255,255,255,0.02);
     padding: 14px 18px; border-radius: 4px; cursor: pointer; margin-bottom: 0;
@@ -1337,7 +1337,7 @@ function render() {
   } else {
     body = listPageHTML(div);
   }
-  app.innerHTML = divisionBarHTML() + monthSelectorHTML() + body;
+  app.innerHTML = monthSelectorHTML() + body;
 }
 
 // ── 저장/불러오기 ────────────────────────────────────────────
