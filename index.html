@@ -276,7 +276,7 @@ const ZC={danger:'rgba(255,105,105,.55)',warn:'rgba(255,173,66,.5)',ok:'rgba(140
 const IND={
 /* ─── 01 수주 ─── */
 'su-11':{dept:'suju',no:'1.1',name:'수주 실적',sub:'연말추정 달성률',team:{d:'영업기획',s:['회계']},
- type:'gauge',unit:'%',fmt:v=>v.toFixed(0)+'%',value:89,min:60,max:120,th:{danger:90,ok:100},
+ type:'gauge',unit:'%',fmt:v=>v.toFixed(0)+'%',value:89,stageOverride:'warn',min:60,max:120,th:{danger:90,ok:100},
  tick:{danger:'경보선 90%',ok:'사업계획 100%'},
  diag:'연말 추정 <b>24,547억</b> — 계획 대비 <span class="dn">▼3,032억(11.0%) 부족</span>',
  actions:{
