@@ -173,11 +173,16 @@ summary::before{content:'▸ ';color:var(--amber);} details[open] summary::befor
 .ev{padding:4px 24px 20px;font-size:13.5px;line-height:1.9;font-weight:600;}
 .ev b{font-weight:800;} .ev .dn{color:var(--dangerc);} .ev .up{color:var(--okc);}
 .demo{margin-top:22px;border:1.5px dashed rgba(255,173,66,.45);border-radius:14px;padding:16px 24px;background:rgba(255,173,66,.04);}
-.demo .cap{font-size:12.5px;font-weight:800;color:var(--amber);margin-bottom:11px;}
-.demo .row{display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
-input[type=range]{flex:1;min-width:240px;accent-color:var(--amber);}
+.demo .cap{font-size:12.5px;font-weight:800;color:var(--amber);margin-bottom:11px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;}
+.demo .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.demo .slider-wrap{position:relative;flex:1;min-width:240px;display:flex;align-items:center;}
+input[type=range]{width:100%;accent-color:var(--amber);cursor:pointer;}
+.slider-cur-mark{position:absolute;top:-20px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;pointer-events:none;}
+.slider-cur-mark .lbl{font-size:10.5px;font-weight:800;color:var(--amber);white-space:nowrap;background:var(--deep);padding:1px 5px;border-radius:4px;border:1px solid rgba(255,173,66,.4);}
+.slider-cur-mark .pin{width:2px;height:12px;background:var(--amber);margin-top:1px;}
 .demo .cur{font-size:14.5px;font-weight:800;min-width:110px;}
-.demo button{font-family:inherit;font-size:12.5px;font-weight:800;color:var(--text);background:var(--deep);border:1px solid var(--border);border-radius:9px;padding:6px 14px;cursor:pointer;}
+.demo .btn-grp{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-left:auto;}
+.demo button{font-family:inherit;font-size:12px;font-weight:800;color:var(--text);background:var(--deep);border:1px solid var(--border);border-radius:9px;padding:6px 12px;cursor:pointer;white-space:nowrap;}
 .demo button:hover{border-color:var(--amber);color:var(--amber);}
 /* 현황 요약(갑지 블록 이식) */
 .ov-grid2{display:grid;grid-template-columns:1fr 1fr;gap:22px;}
@@ -649,12 +654,31 @@ function renderInd(id){
   const emb=embG+(d.embed||[]).map(([k,cap,tab,sid])=>`<div style="margin-top:14px;"><div class="p-cap" style="display:flex;align-items:center;gap:12px;">${cap}${!tab?`<button class="cp-btn" style="margin-left:auto" onclick="openDocWin('${k}','${cap.replace(/'/g,'')}')">↗ 새 창에서 크게 보기</button>`:''}</div>${tab?`<div class="cardpick" data-for="${k}-${sid}"></div>`:''}<iframe data-doc="${k}" ${tab?`data-tab="${tab}" data-sid="${sid}"`:''} style="width:100%;height:${(k==='v1'||k==='suju')&&tab?'820':'760'}px;border:1px solid var(--border);border-radius:12px;" loading="lazy"></iframe></div>`).join('');
   h+=`<details ${(d.embed||d.embedGrp)?'ontoggle="injectDocs(this)"':''}><summary>근거 데이터 보기${(d.embed||d.embedGrp)?' — 현장별 상세 포함':''}</summary><div class="ev" style="padding:4px 24px 20px;">${d.ev||'-'}${emb}</div></details>`;
   /* 시나리오 시뮬레이션 */
-  if(d.sim){ h+=`<div class="demo"><div class="cap">⚙ 시나리오 시뮬레이션 — 지표 값 변동 시 판정 단계와 대응 조치의 자동 변화를 확인</div>
-    <div class="row"><span class="cur">시나리오 값 <span id="dv">${d.value}</span>${d.unit}</span>
-    <input type="range" id="slider" min="${d.min}" max="${d.max}" step="${(d.max-d.min)/100}" value="${d.value}">
-    <button onclick="setV(${simPt(d,'danger')})">경보 시나리오</button>
-    <button onclick="setV(${d.value})">실제 현재값</button>
-    <button onclick="setV(${simPt(d,'ok')})">양호 시나리오</button></div></div>`; }
+  if(d.sim){
+    const initPct = Math.max(0, Math.min(100, ((d.value - d.min)/(d.max - d.min))*100));
+    h+=`<div class="demo">
+      <div class="cap">
+        <span>⚙ 시나리오 시뮬레이션 — 지표 값 변동 시 판정 단계와 대응 조치의 자동 변화를 확인</span>
+        <button onclick="setV(${d.value})" style="background:var(--deep);border:1.5px solid var(--amber);color:var(--amber);">실제 현재값 (${d.fmt(d.value)})</button>
+      </div>
+      <div class="row">
+        <span class="cur">시나리오 값 <span id="dv">${d.value}</span>${d.unit}</span>
+        <div class="slider-wrap">
+          <div class="slider-cur-mark" style="left:${initPct.toFixed(1)}%;">
+            <span class="lbl">현재값 (${d.value}${d.unit})</span>
+            <span class="pin"></span>
+          </div>
+          <input type="range" id="slider" min="${d.min}" max="${d.max}" step="${(d.max-d.min)/100}" value="${d.value}">
+        </div>
+        <div class="btn-grp">
+          <button onclick="setV(${simPt(d,'danger')})">경보 시나리오</button>
+          <button onclick="setV(${simPt(d,'warn')})">주의 시나리오</button>
+          <button onclick="setV(${d.value})">실제 현재값</button>
+          <button onclick="setV(${simPt(d,'ok')})">양호(정상) 시나리오</button>
+        </div>
+      </div>
+    </div>`;
+  }
   const _cat=dp.cats.find(c=>c.ids.includes(id));
   const _sibs=_cat?_cat.ids.filter(x=>x!==id):[];
   h+=`<div class="botnav"><span class="bn-cap">이동</span>
@@ -668,6 +692,9 @@ function renderInd(id){
   setCrumb([[dp.no+' '+dp.name,'dept-'+d.dept],[d.no+' '+d.name,null]]);
 }
 function simPt(d,tgt){
+  if(tgt==='warn'){
+    return Math.round(((d.th.danger + d.th.ok)/2)*100)/100;
+  }
   if(d.invert) return tgt==='danger'? Math.min(d.max, d.th.danger+(d.max-d.th.danger)*0.4) : Math.max(d.min, d.th.ok-(d.th.ok-d.min)*0.3);
   return tgt==='danger'? Math.max(d.min, d.th.danger-(d.th.danger-d.min)*0.3) : Math.min(d.max, d.th.ok+(d.max-d.th.ok)*0.4);
 }
