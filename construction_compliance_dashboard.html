@@ -1,0 +1,1546 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>공정 진행 준수율 대시보드</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;900&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+  :root {
+    --bg: #2b3733;
+    --panel: #313d38;
+    --panel-2: #242e2b;
+    --line: rgba(170, 185, 177, 0.16);
+    --text: #f0f4f2;
+    --muted: #aab9b1;
+    --blue: #6fb3e8;
+    --amber: #ffad42;
+    --rust: #ff8f7a;
+    --teal: #a8d480;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 14px 16px 32px;
+  }
+  .page { max-width: 900px; margin: 0 auto; }
+
+  .panel {
+    background: linear-gradient(155deg, #35423e, #27322e);
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 6px 6px 18px rgba(0,0,0,0.35), -4px -4px 10px rgba(255,255,255,0.02);
+    border-radius: 6px;
+  }
+
+  .panel-eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--blue);
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .cover-title { font-size: 20px; font-weight: 900; margin: 0 0 3px; letter-spacing: -0.01em; }
+  .cover-sub { font-size: 12px; color: var(--muted); margin: 0 0 10px; }
+
+  .total-panel { padding: 12px 14px 8px; margin-bottom: 10px; overflow: visible; }
+  .panel-note { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
+
+  .section-title {
+    font-size: 13px; font-weight: 700; margin: 2px 0 6px;
+    padding-left: 8px; border-left: 3px solid var(--blue);
+  }
+
+  .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
+  .stat-card { padding: 8px 10px; text-align: center; border-top: 3px solid var(--blue); }
+  .stat-card.accent-severe { border-top-color: var(--rust); }
+  .stat-card.accent-caution { border-top-color: var(--amber); }
+  .stat-card.accent-normal { border-top-color: var(--teal); }
+  .stat-num { font-family: 'IBM Plex Mono', monospace; font-size: 20px; font-weight: 600; }
+  .stat-label { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+  .dist-bar { display: flex; height: 6px; overflow: hidden; border-radius: 4px; margin-bottom: 10px; box-shadow: inset 2px 2px 5px rgba(0,0,0,0.5); }
+  .seg-severe { background: var(--rust); }
+  .seg-caution { background: var(--amber); }
+  .seg-normal { background: var(--teal); }
+
+  .action-plan-panel { padding: 10px 14px; margin-bottom: 10px; border-left: 4px solid var(--muted); }
+  .action-plan-panel.ap-severe { border-left-color: var(--rust); }
+  .action-plan-panel.ap-caution { border-left-color: var(--amber); }
+  .action-plan-panel.ap-normal { border-left-color: var(--teal); }
+  .ap-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .ap-title { font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.1em; color: var(--muted); }
+  .ap-badge {
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 700;
+    padding: 3px 10px; border-radius: 4px; border: 1px solid currentColor;
+  }
+  .ap-badge-severe { color: var(--rust); }
+  .ap-badge-caution { color: var(--amber); }
+  .ap-badge-normal { color: var(--teal); }
+  .ap-list { margin: 0 0 10px; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+  .ap-list li { font-size: 13px; line-height: 1.5; }
+  .ap-note { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+  .ap-flow-title { font-size: 13px; font-weight: 700; color: var(--text); margin: 2px 0 8px; }
+  .flow-tracks { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+  .flow-track { background: #242e2b; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 10px; }
+  .flow-track-label { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700; color: var(--blue); margin-bottom: 6px; }
+  .flow-diagram { display: flex; align-items: stretch; gap: 4px; flex-wrap: wrap; }
+  .flow-step {
+    flex: 1; min-width: 120px; background: #35423e; border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 5px; padding: 6px 8px; box-shadow: 2px 2px 6px rgba(0,0,0,0.4);
+  }
+  .flow-step-name { font-size: 11px; font-weight: 700; color: var(--text); margin-bottom: 4px; white-space: nowrap; }
+  .flow-step-roles { display: flex; gap: 6px; flex-wrap: nowrap; }
+  .flow-step-role { font-size: 9px; color: var(--muted); display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .flow-role-tag {
+    font-family: 'IBM Plex Mono', monospace; font-size: 8px; font-weight: 700;
+    padding: 0px 4px; border-radius: 3px; flex-shrink: 0;
+  }
+  .flow-role-tag.main { background: rgba(56,194,165,0.18); color: var(--teal); }
+  .flow-role-tag.support { background: rgba(79,168,216,0.18); color: var(--blue); }
+  .flow-arrow { display: flex; align-items: center; justify-content: center; font-size: 14px; color: var(--muted); padding: 0; }
+
+  .flow-step-action {
+    flex: 1.3; min-width: 150px; text-align: left; cursor: pointer; font-family: inherit;
+    display: flex; flex-direction: column; justify-content: center; gap: 3px;
+  }
+  .flow-step-action.ok { border-color: rgba(56,194,165,0.4); background: rgba(56,194,165,0.1); }
+  .flow-step-action.bad { border-color: rgba(225,82,82,0.45); background: rgba(225,82,82,0.12); }
+  .flow-step-action.placeholder { cursor: default; opacity: 0.75; }
+  .flow-step-action .flow-step-name { white-space: normal; font-size: 11px; }
+  .flow-step-cta { font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700; color: var(--blue); }
+  .flow-step-cta.muted { color: var(--muted); }
+  .flow-step-action.bad .flow-step-cta { color: var(--rust); }
+  .flow-step-action.ok .flow-step-cta { color: var(--teal); }
+
+  .countermeasure-btn {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    font-family: 'Noto Sans KR', sans-serif; font-size: 13px; font-weight: 700; color: var(--amber);
+    background: rgba(240,169,78,0.1); border: 1px solid rgba(240,169,78,0.4);
+    border-radius: 6px; padding: 9px 14px; cursor: pointer; margin-top: 2px;
+  }
+  .countermeasure-btn:hover { background: rgba(240,169,78,0.18); }
+  .cm-extra-note {
+    margin-top: 6px; font-size: 12px; font-weight: 700; color: var(--rust);
+    background: rgba(225,82,82,0.1); border: 1px solid rgba(225,82,82,0.35);
+    border-radius: 4px; padding: 7px 12px;
+  }
+
+  .cm-panel { padding: 20px 22px; margin-bottom: 20px; }
+  .cm-field { margin-bottom: 18px; }
+  .cm-field:last-child { margin-bottom: 0; }
+  .cm-label { display: block; font-size: 13px; font-weight: 700; color: var(--blue); margin-bottom: 8px; }
+  .cm-textarea {
+    width: 100%; min-height: 90px; resize: vertical; font-family: 'Noto Sans KR', sans-serif; font-size: 13px;
+    color: var(--text); background: #242e2b; border: 1px solid rgba(255,255,255,0.12); border-radius: 4px;
+    padding: 10px 12px; line-height: 1.5;
+  }
+  .cm-textarea:focus { outline: none; border-color: var(--blue); }
+
+
+  .ap-columns { display: flex; flex-direction: column; gap: 14px; }
+  .ap-col { background: #242e2b; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 14px 16px; }
+  .ap-col-title { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 700; color: var(--teal); margin-bottom: 8px; }
+  .ap-col .ap-list { margin: 0; padding-left: 16px; }
+  .ap-col-empty { font-size: 12px; color: var(--muted); }
+  .ap-col-wide { grid-column: 1 / -1; }
+
+  .cp-section { margin-top: 4px; }
+  .cp-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; }
+  .cp-card { background: #242e2b; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; overflow: hidden; box-shadow: 3px 3px 10px rgba(0,0,0,0.4); }
+  .cp-card-header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #35423e; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .cp-name-input {
+    flex: 1; background: transparent; border: none; border-bottom: 1px dashed transparent;
+    color: var(--text); font-size: 14px; font-weight: 700; padding: 4px 2px;
+  }
+  .cp-name-input:hover, .cp-name-input:focus { border-bottom-color: var(--blue); outline: none; }
+  .cp-del-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 2px 6px; }
+  .cp-del-btn:hover { color: var(--rust); }
+
+  .cp-table-scroll { overflow-x: auto; }
+  .cp-table { border-collapse: collapse; font-size: 8px; width: 100%; table-layout: fixed; }
+  .cp-col-label { width: 68px; }
+  .cp-col-week { width: auto; }
+  .cp-table th, .cp-table td { text-align: center; padding: 2px 0; border: 1px solid rgba(255,255,255,0.1); overflow: hidden; }
+
+  /* 월과 월 사이 경계선을 두껍고 밝은 색으로 강조 */
+  .cp-table thead tr:first-child th:nth-child(n+2) { border-left: 2px solid var(--blue); }
+  .cp-table thead tr:last-child th:nth-child(4n+1) { border-left: 2px solid var(--blue); }
+  .cp-table tbody tr:not(.cp-team-divider) td:nth-child(4n+2) { border-left: 2px solid var(--blue); }
+  .cp-table thead th { background: #35423e; color: var(--text); font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 8px; }
+  .cp-label-th { color: var(--muted); }
+  .cp-item-label { font-size: 10px; color: var(--text); font-weight: 600; white-space: nowrap; text-align: left; padding-left: 6px !important; background: #313d38; }
+  .cp-team-divider td { background: #3c4b46; text-align: left; padding: 5px 8px !important; font-size: 11px; color: #ffffff; font-weight: 700; font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.04em; }
+  .cp-cell { padding: 1px !important; background: #2b3733; }
+  .cp-toggle-cell {
+    width: 100%; aspect-ratio: 1 / 1; max-width: 15px; max-height: 15px; border-radius: 2px; cursor: pointer; padding: 0;
+    background: #35423e; border: 1px solid rgba(255,255,255,0.15);
+    transition: background 0.1s ease, box-shadow 0.1s ease;
+  }
+  .cp-toggle-cell:hover { border-color: var(--blue); }
+  .cp-toggle-cell.team-construction.on { background: var(--teal); border-color: var(--teal); box-shadow: 0 0 6px rgba(168,212,128,0.7); }
+  .cp-toggle-cell.team-procurement.on { background: var(--blue); border-color: var(--blue); box-shadow: 0 0 6px rgba(111,179,232,0.7); }
+
+  .cp-add-btn {
+    font-family: 'Noto Sans KR', sans-serif; font-size: 12px; font-weight: 700;
+    background: #35423e; color: var(--blue); border: 1px dashed rgba(111,179,232,0.5);
+    border-radius: 4px; padding: 9px 14px; cursor: pointer; width: 100%;
+  }
+  .cp-add-btn:hover { background: rgba(111,179,232,0.15); }
+
+  .cp-delay-badge {
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700;
+    padding: 3px 9px; border-radius: 10px; white-space: nowrap; border: 1px solid currentColor;
+  }
+  .cp-delay-ok { color: var(--teal); }
+  .cp-delay-bad { color: var(--rust); background: rgba(255,143,122,0.12); }
+  .cp-delay-missing { color: var(--amber); background: rgba(255,173,66,0.12); }
+
+  .cp-delay-summary {
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 700;
+    padding: 10px 16px; border-radius: 4px; margin-bottom: 20px; text-align: center;
+    width: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .cp-delay-summary.ok { color: var(--teal); background: rgba(168,212,128,0.1); border: 1px solid rgba(168,212,128,0.3); }
+  .cp-delay-summary.bad { color: var(--rust); background: rgba(255,143,122,0.14); border: 1px solid rgba(255,143,122,0.4); }
+  .cp-delay-summary:hover { filter: brightness(1.15); }
+  .cp-delay-arrow { font-family: 'Noto Sans KR', sans-serif; }
+
+  .delay-list-panel { padding: 8px; margin-bottom: 20px; }
+  .delay-list { display: flex; flex-direction: column; gap: 8px; }
+  .delay-row {
+    display: flex; align-items: center; gap: 14px;
+    background: linear-gradient(155deg, #35423e, #27322e);
+    border: 1px solid rgba(255,255,255,0.05); border-left: 4px solid var(--rust);
+    box-shadow: 6px 6px 14px rgba(0,0,0,0.5), -4px -4px 10px rgba(255,255,255,0.02);
+    border-radius: 4px; padding: 12px 14px; cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+  .delay-row:hover { transform: translate(2px, -2px); box-shadow: 8px 10px 18px rgba(0,0,0,0.6), -4px -4px 10px rgba(255,255,255,0.03); }
+  .delay-days-badge {
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 700; color: var(--rust);
+    background: rgba(225,82,82,0.14); border: 1px solid rgba(225,82,82,0.4);
+    padding: 4px 10px; border-radius: 4px; white-space: nowrap;
+  }
+  .delay-info { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .delay-site { font-size: 14px; font-weight: 600; }
+  .delay-cp { font-size: 12px; color: var(--muted); }
+
+  .sector-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+  .sector-tab {
+    font-family: 'Noto Sans KR', sans-serif; font-size: 13px; font-weight: 600;
+    background: linear-gradient(155deg, #122034, #0c1728);
+    border: 1px solid rgba(255,255,255,0.08); color: var(--muted);
+    box-shadow: 4px 4px 10px rgba(0,0,0,0.5), -3px -3px 8px rgba(255,255,255,0.02);
+    padding: 8px 16px; border-radius: 4px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .sector-tab.active { color: var(--text); border-color: var(--blue); box-shadow: inset 2px 2px 6px rgba(0,0,0,0.5); }
+  .tab-count {
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700;
+    background: rgba(255,255,255,0.08); padding: 1px 6px; border-radius: 10px;
+  }
+  .sector-tab.active .tab-count { background: var(--blue); color: #0a1420; }
+  .empty-note { font-size: 13px; color: var(--muted); padding: 20px; text-align: center; }
+
+  .list-eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px; color: var(--muted); letter-spacing: 0.08em;
+    margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.12); padding-bottom: 8px;
+  }
+  .list-head-row {
+    display: grid; grid-template-columns: 32px 1fr 180px 110px 96px; gap: 12px;
+    font-size: 11px; color: var(--muted); padding: 0 14px; margin-bottom: 6px;
+  }
+  .col-mini, .col-gap { text-align: right; }
+  .site-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .site-row {
+    display: grid; grid-template-columns: 32px 1fr 180px 110px 96px; align-items: center; gap: 12px;
+    background: linear-gradient(155deg, #122034, #0c1728);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-left: 4px solid var(--muted);
+    box-shadow: 6px 6px 14px rgba(0,0,0,0.5), -4px -4px 10px rgba(255,255,255,0.02);
+    border-radius: 4px;
+    padding: 12px 14px; text-align: left; cursor: pointer; font-family: inherit;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+  .site-row:hover { transform: translate(2px, -2px); box-shadow: 8px 10px 18px rgba(0,0,0,0.6), -4px -4px 10px rgba(255,255,255,0.03); }
+  .site-row.status-severe { border-left-color: var(--rust); }
+  .site-row.status-caution { border-left-color: var(--amber); }
+  .site-row.status-normal { border-left-color: var(--teal); }
+
+  .move-btn {
+    font-family: 'Noto Sans KR', sans-serif; font-size: 11px; font-weight: 600;
+    background: var(--panel-2); color: var(--blue); border: 1px solid rgba(79,168,216,0.4);
+    border-radius: 4px; padding: 6px 8px; cursor: pointer; white-space: nowrap;
+  }
+  .move-btn:hover { background: var(--blue); color: #0a1420; }
+
+  .rank { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted); }
+  .site-name-block { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .site-name { font-weight: 600; font-size: 14px; }
+  .site-cat { font-size: 11px; color: var(--muted); }
+
+  .mini-bar-track { position: relative; height: 8px; background: #0a1522; border-radius: 3px; box-shadow: inset 1px 1px 3px rgba(0,0,0,0.6); }
+  .mini-bar-fill { position: absolute; inset: 0; height: 100%; border-radius: 3px; }
+  .fill-severe { background: var(--rust); }
+  .fill-caution { background: var(--amber); }
+  .fill-normal { background: var(--teal); }
+  .mini-marker { position: absolute; top: -2px; width: 2px; height: 12px; transform: translateX(-1px); }
+  .mini-marker.plan { background: #ffffff; }
+  .mini-marker.target { background: var(--blue); opacity: 0.7; }
+
+  .gap-badge { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; text-align: right; display: flex; flex-direction: column; gap: 2px; }
+  .gap-badge em { font-style: normal; font-size: 10px; font-weight: 500; font-family: 'Noto Sans KR', sans-serif; color: var(--muted); }
+  .badge-severe { color: var(--rust); }
+  .badge-caution { color: var(--amber); }
+  .badge-normal { color: var(--teal); }
+
+  .back-btn {
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px;
+    background: var(--panel-2); border: 1px solid rgba(255,255,255,0.1); color: var(--text);
+    box-shadow: 4px 4px 10px rgba(0,0,0,0.5);
+    padding: 6px 12px; cursor: pointer; margin-bottom: 24px; border-radius: 4px;
+  }
+  .back-btn:hover { color: var(--blue); }
+
+  .detail-title { font-size: 24px; font-weight: 900; margin: 0 0 12px; }
+  .detail-meta { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; flex-wrap: wrap; }
+  .tag { font-size: 12px; border: 1px solid var(--muted); color: var(--muted); padding: 3px 10px; border-radius: 3px; }
+
+  .bars-panel { padding: 24px 22px 8px; margin-bottom: 20px; overflow: visible; }
+  .full-bar-row { margin-bottom: 18px; position: relative; }
+  .full-bar-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+  .fb-name { font-weight: 600; }
+  .fb-value { font-family: 'IBM Plex Mono', monospace; font-weight: 600; }
+  .full-bar-track {
+    position: relative; height: 22px; background: #0a1522; border-radius: 4px;
+    box-shadow: inset 2px 2px 6px rgba(0,0,0,0.65), inset -1px -1px 3px rgba(255,255,255,0.03);
+  }
+  .grid-lines { position: absolute; inset: 0; }
+  .grid-line { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,0.06); }
+  .full-bar-fill {
+    position: absolute; top: 0; bottom: 0; left: 0; border-radius: 4px;
+    box-shadow: 2px 2px 6px rgba(0,0,0,0.5);
+    overflow: hidden;
+  }
+  .fill-sheen { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255,255,255,0.22), rgba(255,255,255,0) 55%); }
+  .v-plan { background: var(--blue); }
+  .v-severe { background: var(--rust); }
+  .v-caution { background: var(--amber); }
+  .v-normal { background: var(--teal); }
+  .v-target { background: var(--teal); }
+
+  .full-bar-forecast { position: absolute; top: 0; bottom: 0; opacity: 0.6; border-radius: 0 4px 4px 0; }
+  .full-bar-forecast.v-plan { background: repeating-linear-gradient(45deg, var(--blue), var(--blue) 5px, transparent 5px, transparent 9px); }
+  .full-bar-forecast.v-severe { background: repeating-linear-gradient(45deg, var(--rust), var(--rust) 5px, transparent 5px, transparent 9px); }
+  .full-bar-forecast.v-caution { background: repeating-linear-gradient(45deg, var(--amber), var(--amber) 5px, transparent 5px, transparent 9px); }
+  .full-bar-forecast.v-normal { background: repeating-linear-gradient(45deg, var(--teal), var(--teal) 5px, transparent 5px, transparent 9px); }
+  .full-bar-forecast.v-target { background: repeating-linear-gradient(45deg, var(--teal), var(--teal) 5px, transparent 5px, transparent 9px); }
+
+  .review-line { position: absolute; top: -8px; bottom: 0; width: 0; border-left: 2px dashed #ffffff; opacity: 0.75; }
+  .review-label {
+    position: absolute; top: -20px; left: 4px; white-space: nowrap;
+    font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #ffffff;
+    background: rgba(0,0,0,0.4); padding: 1px 4px; border-radius: 2px;
+  }
+
+  .achv-anchor { position: absolute; top: 0; bottom: 0; width: 0; z-index: 3; }
+  .achv-bubble {
+    position: absolute; top: 50%; left: 8px; transform: translateY(-50%);
+    background: #0d1826; border: 1px solid currentColor; border-radius: 6px;
+    padding: 3px 8px; white-space: nowrap;
+    box-shadow: 3px 3px 8px rgba(0,0,0,0.55);
+    display: flex; flex-direction: column; align-items: flex-start; line-height: 1.25;
+  }
+  .achv-bubble::before {
+    content: ""; position: absolute; top: 50%; left: -8px; transform: translateY(-50%);
+    border: 5px solid transparent; border-right-color: currentColor;
+  }
+  .achv-cap { font-size: 9px; color: var(--muted); font-family: 'Noto Sans KR', sans-serif; }
+  .achv-val { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 700; }
+  .achv-good { color: var(--teal); }
+  .achv-warn { color: var(--amber); }
+  .achv-bad { color: var(--rust); }
+
+  .ruler { position: relative; height: 18px; margin-top: 6px; }
+  .ruler-tick { position: absolute; transform: translateX(-50%); font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--muted); }
+
+  .trend-panel { padding: 20px 20px 12px; margin-bottom: 20px; }
+  .trend-chart-wrap { position: relative; }
+  .trend-svg { width: 100%; height: auto; display: block; cursor: crosshair; }
+  .trend-hover-line {
+    position: absolute; top: 0; bottom: 26px; width: 1px; background: rgba(255,255,255,0.45);
+    display: none; pointer-events: none; transform: translateX(-0.5px);
+  }
+  .trend-tooltip {
+    position: absolute; top: 10px; transform: translateX(-50%);
+    background: #0d1826; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px;
+    padding: 8px 12px; font-size: 11px; white-space: nowrap;
+    box-shadow: 4px 4px 12px rgba(0,0,0,0.6);
+    display: none; pointer-events: none; z-index: 6;
+  }
+  .tt-month { font-family: 'IBM Plex Mono', monospace; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .tt-row { display: flex; align-items: center; gap: 6px; color: var(--muted); margin-top: 2px; }
+  .tt-row b { font-family: 'IBM Plex Mono', monospace; color: var(--text); font-weight: 700; margin-left: auto; padding-left: 10px; }
+  .tt-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+  .trend-grid { stroke: rgba(255,255,255,0.06); stroke-width: 1; }
+  .trend-axis-label { font-family: 'IBM Plex Mono', monospace; font-size: 9px; fill: var(--muted); }
+  .trend-line { fill: none; stroke-width: 2.5; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6)); }
+  .trend-line-plan { stroke: var(--blue); }
+  .trend-line-actual { stroke: var(--teal); }
+  .trend-line-actual-forecast { stroke: var(--teal); stroke-dasharray: 5 4; opacity: 0.55; }
+  .trend-line-target { stroke: var(--amber); stroke-dasharray: 2 3; }
+  .trend-dot { fill: var(--teal); stroke: #0a1420; stroke-width: 1.5; }
+  .trend-dot-forecast { fill: #0a1420; stroke: var(--teal); opacity: 0.75; }
+  .trend-end-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; fill: var(--teal); font-weight: 600; }
+  .trend-end-actual-forecast { opacity: 0.85; }
+  .trend-end-plan { fill: var(--blue); }
+  .trend-end-target { fill: var(--amber); }
+  .trend-now-line { stroke: #ffffff; stroke-width: 1.5; stroke-dasharray: 3 3; opacity: 0.6; }
+  .trend-now-label { font-family: 'IBM Plex Mono', monospace; font-size: 9px; fill: #ffffff; opacity: 0.8; }
+
+  .legend-row { display: flex; gap: 18px; margin-top: 6px; padding-left: 4px; flex-wrap: wrap; }
+  .legend-item { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .dot-plan { background: var(--blue); }
+  .dot-actual { background: var(--teal); }
+  .dot-forecast { background: transparent; border: 1.5px dashed var(--teal); }
+  .dot-target { background: transparent; border: 1.5px dashed var(--amber); }
+
+  .achieve-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+  .achieve-card { background: var(--panel-2); border: 1px solid rgba(255,255,255,0.06); border-radius: 4px; padding: 12px 14px; }
+  .achieve-card-title { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+  .achieve-row { display: flex; justify-content: space-between; font-size: 13px; margin-top: 4px; }
+  .achieve-row .val { font-family: 'IBM Plex Mono', monospace; font-weight: 700; }
+
+  .insight-panel { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .insight-card { padding: 16px; text-align: center; border-top: 3px solid var(--blue); }
+  .insight-num { font-family: 'IBM Plex Mono', monospace; font-size: 22px; font-weight: 600; }
+  .insight-label { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  @media (max-width: 460px) {
+    .stat-row { grid-template-columns: 1fr; }
+    .list-head-row, .site-row { grid-template-columns: 24px 1fr 84px; }
+    .col-mini, .col-gap { display: none; }
+    .site-row .mini-bar, .site-row .gap-badge { display: none; }
+    .insight-panel { grid-template-columns: 1fr; }
+    .achv-bubble { position: static; transform: none; margin-top: 4px; }
+    .achv-bubble::before { display: none; }
+    .achv-anchor { position: static; }
+  }
+
+  .division-bar { display: flex; gap: 8px; margin-bottom: 8px; }
+
+  .review-month-bar {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+    padding: 6px 12px; background: var(--panel-2); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 4px; box-shadow: inset 2px 2px 6px rgba(0,0,0,0.4);
+  }
+  .review-month-label { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--blue); font-weight: 600; }
+  .review-month-select {
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 700; color: var(--text);
+    background: var(--bg); border: 1px solid rgba(79,168,216,0.4); border-radius: 4px;
+    padding: 5px 10px; cursor: pointer;
+  }
+  .review-month-hint { font-size: 11px; color: var(--muted); }
+  .division-tab {
+    font-family: 'Noto Sans KR', sans-serif; font-size: 13px; font-weight: 700;
+    background: linear-gradient(155deg, #122034, #0c1728);
+    border: 1px solid rgba(255,255,255,0.08); color: var(--muted);
+    box-shadow: 6px 6px 14px rgba(0,0,0,0.5), -4px -4px 10px rgba(255,255,255,0.02);
+    padding: 7px 18px; border-radius: 6px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .division-tab.active { color: var(--text); border-color: var(--blue); box-shadow: inset 3px 3px 8px rgba(0,0,0,0.55); }
+  .division-tab .div-count { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.08); padding: 1px 7px; border-radius: 10px; }
+  .division-tab.active .div-count { background: var(--blue); color: #0a1420; }
+
+  .upload-panel { padding: 20px; margin-bottom: 20px; }
+  .upload-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 14px; }
+  .upload-field { display: flex; flex-direction: column; gap: 6px; }
+  .upload-field label { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .upload-field input[type="file"] {
+    font-size: 12px; color: var(--text); background: var(--panel-2);
+    border: 1px dashed rgba(255,255,255,0.15); border-radius: 4px; padding: 10px; width: 100%;
+  }
+  .upload-field .file-picked { font-size: 11px; color: var(--teal); }
+  .upload-actions { display: flex; align-items: center; gap: 12px; }
+  .upload-apply-btn {
+    font-family: 'Noto Sans KR', sans-serif; font-size: 13px; font-weight: 700;
+    background: var(--blue); color: #0a1420; border: none; border-radius: 4px;
+    padding: 10px 22px; cursor: pointer;
+  }
+  .upload-apply-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .upload-status { font-size: 12px; color: var(--muted); }
+  .upload-status.error { color: var(--rust); }
+  .upload-status.ok { color: var(--teal); }
+  .empty-division { padding: 48px 20px; text-align: center; color: var(--muted); font-size: 14px; }
+
+  .collapse-toggle {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    font-family: 'Noto Sans KR', sans-serif; font-size: 14px; font-weight: 700; color: var(--text);
+    background: linear-gradient(155deg, #122034, #0c1728);
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 6px 6px 14px rgba(0,0,0,0.5), -4px -4px 10px rgba(255,255,255,0.02);
+    padding: 14px 18px; border-radius: 4px; cursor: pointer; margin-bottom: 0;
+  }
+  .collapse-toggle .chev { font-family: 'IBM Plex Mono', monospace; color: var(--blue); transition: transform 0.15s ease; }
+  .collapse-toggle.open .chev { transform: rotate(90deg); }
+  .collapse-body { margin-top: 16px; }
+</style>
+</head>
+<body>
+<div id="app" class="page">로딩 중...</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+"use strict";
+
+const DEFAULT_SITES_CONSTRUCTION = [
+  { id: "B002838", name: "ㅇㅇㅇ 공동주택", period: "2026/05~2029/04", planAnnual: 17774014525, planMonths: [0,0,0,1067416760,585554190,1131461452,1790210056,2333068157,2906423463,2494706145,2354416760,3110757542], actualAnnual: 0, actualMonths: [0,0,0,0,0,0,0,0,0,0,0,0], targetAnnual: 0, targetMonths: [0,0,0,0,0,0,0,0,0,0,0,0] },
+  { id: "B002862", name: "ㅇㅇㅇ 업무시설", period: "2026/06~2028/09", planAnnual: 7712640223, planMonths: [0,0,0,0,0,329097207,865948603,1062671508,1278698324,1400041341,1452440224,1323743016], actualAnnual: 3536415632, actualMonths: [0,0,0,0,0,0,0,0,329097206,865948601,1062671505,1278698320], targetAnnual: 3536415632, targetMonths: [0,0,0,0,0,0,0,0,329097206,865948601,1062671505,1278698320] },
+  { id: "B002988", name: "고양창릉 아파트", period: "2026/06~2028/11", planAnnual: 15419318478, planMonths: [0,0,0,0,0,327272826,429545652,1844318479,2369318478,2505681522,3262500000,4680681521], actualAnnual: 0, actualMonths: [0,0,0,0,0,0,0,0,0,0,0,0], targetAnnual: 0, targetMonths: [0,0,0,0,0,0,0,0,0,0,0,0] },
+  { id: "B002994", name: "종로 관수8지구 업무시설 신축공사", period: "2026/07~2029/07", planAnnual: 12968700529, planMonths: [0,0,0,0,622025397,1636724868,1800049735,1709700529,1136324868,1271849735,2449875133,2342150264], actualAnnual: 6904825397, actualMonths: [0,0,0,0,0,0,0,622025397,1636724868,1800049735,1709700529,1136324868], targetAnnual: 6906935304, targetMonths: [0,0,0,0,0,0,0,577762383,1262517800,1448685679,1808182273,1809787169] },
+  { id: "B002992", name: "ㅇㅇㅇ  물류센터", period: "2026/05~2028/10", planAnnual: 20369237989, planMonths: [0,0,0,0,1251015642,2387831285,2984788827,1718200000,1946601118,3176853631,2906925140,3997022346], actualAnnual: 10288436878, actualMonths: [0,0,0,0,0,0,0,1251015643,2387831287,2984788828,1718200001,1946601119], targetAnnual: 8341835759, targetMonths: [0,0,0,0,0,0,0,0,1251015643,2387831287,2984788828,1718200001] },
+  { id: "B002350", name: "(2026)OOO 물류센터", period: "2026/06~2028/11", planAnnual: 9877878723, planMonths: [0,0,0,0,0,805743617,1537932979,1125031915,1061508510,2096270213,2046120213,1205271276], actualAnnual: 6626487234, actualMonths: [0,0,0,0,0,0,0,805743617,1537932979,1125031915,1061508510,2096270213], targetAnnual: 4530217021, targetMonths: [0,0,0,0,0,0,0,0,805743617,1537932979,1125031915,1061508510] },
+  { id: "B002890", name: "ㅇㅇㅇ 물류센터", period: "2026/06~2029/01", planAnnual: 9533829945, planMonths: [0,0,0,0,0,777678884,1484366659,1085846660,1024535550,2023256655,1974853322,1163292215], actualAnnual: 7366432222, actualMonths: [0,0,0,0,0,0,0,895716667,1709666666,1250657778,1180041111,2330350000], targetAnnual: 5036082222, targetMonths: [0,0,0,0,0,0,0,0,895716667,1709666666,1250657778,1180041111] },
+  { id: "B002993", name: "서울역 양동 11,12지구 업무시설 신축공사", period: "2026/05~2031/01", planAnnual: 9957548607, planMonths: [0,0,0,805807779,758567893,758567893,758567893,758567893,758567893,600105854,1981345514,2777449995], actualAnnual: 5246895218, actualMonths: [0,0,0,0,35316427,465666211,446307720,758832839,758832838,758832839,758832839,1264273505], targetAnnual: 6548810790, targetMonths: [0,0,0,0,35316427,547057405,673539444,1051824248,948835805,1044718135,1022507503,1225011823] },
+  { id: "B002843", name: "시흥하중LH아파트소방공사2공구", period: "2026/03~2028/01", planAnnual: 612314604, planMonths: [0,0,97125764,16891438,16891437,25337156,25337156,38005734,76011468,84457187,105571483,126685781], actualAnnual: 319670452, actualMonths: [0,0,0,0,0,0,70521751,25337156,25337156,38005734,76011468,84457187], targetAnnual: 392092490, targetMonths: [0,0,0,0,0,0,0,155612367,42228593,50674313,63342890,80234327] },
+  { id: "B002999", name: "화성 HPC센터 배터리동 신축공사", period: "2026/04~2026/12", planAnnual: 10000000000, planMonths: [0,0,0,176667021,700332979,849167021,958167022,1226332978,2047332979,2477000000,1565000000,0], actualAnnual: 10341149372, actualMonths: [0,0,0,2054219,232881396,264819707,355423269,966323432,2710705099,2904676916,1109296426,1794968908], targetAnnual: 10341149372, targetMonths: [0,0,0,2054219,232881396,259065962,355598450,966799711,2712041148,2906108568,1109843175,1796756743] },
+  { id: "B002851", name: "서울역 봉래3지구 업무시설", period: "2025/12~2026/10", planAnnual: 3678275900, planMonths: [30059058,277952184,387312263,224788167,234391382,244687263,240565251,496263277,442142598,463741992,279525710,356846755], actualAnnual: 2685502171, actualMonths: [31277933,280411098,215327425,101941080,85304269,76710770,148115307,122937908,239260942,468672571,358057918,557484950], targetAnnual: 2847603124, targetMonths: [31277933,280411098,215327425,101941080,85304269,46545750,148918276,170095428,168546561,518682291,615689188,464863825] },
+  { id: "B002706", name: "수서 역세권 4블록 업무시설", period: "2024/09~2027/10", planAnnual: 57608770374, planMonths: [2481670765,2079798647,3723545641,4714207156,4293967054,5141059376,5079530404,5892219415,5292241675,5695307075,6386455847,6828767319], actualAnnual: 55667223362, actualMonths: [2516937273,2174911518,4072337631,3859354728,3199258067,3860229691,2711894012,4422414066,6758662092,7349225564,6982216305,7759782415], targetAnnual: 55212359192, targetMonths: [2516937273,2174911518,4072337631,3859354728,3199258067,3876705934,4506940635,4377601139,5467556520,6019665955,6601643916,8539445876] },
+  { id: "B002888", name: "이노션 서초 신사옥", period: "2025/12~2029/04", planAnnual: 12355780572, planMonths: [440976568,308469401,935108585,808143620,989116394,1064453332,1515773655,1331631720,1275696934,1069211230,1331900882,1285298251], actualAnnual: 11096925834, actualMonths: [424808315,181052598,670327104,1037829040,951220830,804218558,991109797,911156339,1561490485,917231611,1240327597,1406153560], targetAnnual: 11359819953, targetMonths: [424808315,181052598,670327104,1037829040,951220830,802274365,962389809,921780235,1307132485,999336110,1329715604,1771953458] },
+  { id: "B002541", name: "성수동 CXC 복합시설 신축공사", period: "2026/01~2029/01", planAnnual: 16004561949, planMonths: [0,325891504,2004831245,1495716431,2129140298,2306799298,1886505183,832890481,1345110966,1219315136,1195915169,1262446238], actualAnnual: 16031201817, actualMonths: [0,359397544,1702097805,1198596537,1300999600,1386746889,1333698441,2169889404,1997410872,1286483628,1584695617,1711185480], targetAnnual: 16031201818, targetMonths: [0,359397544,1702097805,1198596537,1300999600,1379502100,1391988272,1523857552,1805743367,1475419625,1629193521,2264405895] },
+  { id: "B002957", name: "고양창릉LH아파트전기공사4공구", period: "2026/04~2029/06", planAnnual: 240613717, planMonths: [0,0,0,9871332,9871332,13573082,18508747,20976580,30847913,40719244,40719245,55526242], actualAnnual: 182838941, actualMonths: [0,0,0,0,0,0,0,62500000,26613420,26613420,28927630,38184471], targetAnnual: 163404470, targetMonths: [0,0,0,0,0,0,0,0,81250000,26613420,26613420,28927630] },
+  { id: "B002566", name: "부천원종LH아파트소방공사2공구", period: "2023/10~2026/01", planAnnual: 1054327172, planMonths: [1054327172,0,0,0,0,0,0,0,0,0,0,0], actualAnnual: 904761908, actualMonths: [1054327172,0,-149565264,0,0,0,0,0,0,0,0,0], targetAnnual: 904761908, targetMonths: [1054327172,0,-149565264,0,0,0,0,0,0,0,0,0] },
+  { id: "B002774", name: "진천 광혜원 물류센터 신축공사", period: "2025/11~2028/04", planAnnual: 84333047294, planMonths: [1264441337,1948000612,2075075829,2553438236,3813601595,6824520107,8764478524,9840934243,11051995765,12694513054,12602719109,10899328883], actualAnnual: 85417777009, actualMonths: [1264968011,2018152605,2515700388,2948646100,3387510356,6052986327,6208095728,9720539044,11397556660,14892897285,13578936729,11431787776], targetAnnual: 84346472453, targetMonths: [1264968011,2018152605,2515700388,2948646100,3387510356,6008359040,7178231464,7841593149,12072885189,13826858431,13750707569,11532860151] },
+  { id: "B002731", name: "화성 데이터센터 2차 장비설치공사", period: "2025/12~2027/03", planAnnual: 76794414824, planMonths: [621115920,776220779,1302012803,905148807,2264555874,2865474807,5809094231,9176076613,13659041342,12875420777,13329504415,13210748456], actualAnnual: 77069651668, actualMonths: [625835814,522095465,781527228,526825373,895652829,3056038972,6883288567,8785470700,13697885477,13087973329,14038457741,14168600173], targetAnnual: 77750680639, targetMonths: [625835814,522095465,781527228,526825373,895652829,3107068883,6872397574,8406001830,14374094556,13727312790,14182748344,13729119953] },
+  { id: "B002850", name: "서울숲 업무시설 신축공사", period: "2025/10~2028/06", planAnnual: 15128330022, planMonths: [1238274642,1313024087,1458565364,1114725829,1004682138,1567334170,1472064165,1190332928,1069297053,1145374244,1260048288,1294607114], actualAnnual: 15170068651, actualMonths: [1235267303,1181077195,1409956450,1236707963,1174311514,1395592945,907959199,1087363186,1122368841,1408977649,1564315247,1446171159], targetAnnual: 16035249065, targetMonths: [1235267303,1181077195,1409956450,1236707963,1174311514,1389824267,737910550,1091051968,1536446301,1626181770,1772822655,1643691129] },
+  { id: "B002832", name: "케이스퀘어 성수 복합시설 신축공사", period: "2025/08~2028/05", planAnnual: 16435421572, planMonths: [874925278,1045251483,1720550626,1273383253,1329416512,569122110,1210058015,1533797595,1659591068,1646349650,1786487991,1786487991], actualAnnual: 16443816482, actualMonths: [878393035,1080902678,1533458221,1380400878,820557069,738601666,1230941071,1513857524,1677526062,1799521544,1898529838,1891126896], targetAnnual: 16849280370, targetMonths: [878393035,1080902678,1533458221,1380400878,820557069,854402227,1014375591,1050674514,1590284407,1885420762,2186011875,2574399113] },
+  { id: "B002778", name: "인사동 업무시설 신축공사", period: "2025/05~2029/08", planAnnual: 15445554942, planMonths: [1547548211,860353889,1631855621,2172103631,1201995337,567115220,1206924533,1253015844,1209160880,1161807776,1299614950,1334059050], actualAnnual: 15696432472, actualMonths: [1482801501,820297093,1760749973,2062557524,1090330394,1271588173,650572055,964065509,1356079238,1575533006,1319602201,1342255805], targetAnnual: 16283526040, targetMonths: [1482801501,820297093,1760749973,2062557524,1090330394,1271235631,625846565,749692714,1302920992,1562745114,1519521399,2034827140] },
+  { id: "B002577", name: "과천 지식정보타운 사옥신축", period: "2023/08~2026/02", planAnnual: 23608869517, planMonths: [7865282663,15743586854,0,0,0,0,0,0,0,0,0,0], actualAnnual: 23201969517, actualMonths: [7998140080,15206818476,-2989039,0,0,0,0,0,0,0,0,0], targetAnnual: 23201969517, targetMonths: [7998140080,15206818476,-2989039,0,0,0,0,0,0,0,0,0] },
+  { id: "B002630", name: "성수동 스틱 업무시설", period: "2024/07~2027/02", planAnnual: 43176989681, planMonths: [3192951705,2187542035,3782549589,3614354553,4478830996,3204978642,3711808055,4615711430,3820479786,3598976801,3178659737,3790146352], actualAnnual: 45117361174, actualMonths: [3263954534,2244823994,3533217142,3166812819,3092293829,5029290795,2961621438,4870094285,4611656711,4437874647,4128674128,3777046852], targetAnnual: 44994480311, targetMonths: [3263954534,2244823994,3533217142,3166812819,3092293829,4775771783,3055824805,4878224320,4619355315,4445283143,4135566451,3783352176] },
+  { id: "B002791", name: "다이소 세종 온라인센터 신축공사", period: "2025/05~2026/09", planAnnual: 26718173194, planMonths: [3647863396,2082449340,4645477983,3581029345,3288468790,2336119330,2981492854,1772052860,2383219296,0,0,0], actualAnnual: 26947179695, actualMonths: [3623997691,2077067011,4046871896,3790564061,3221725676,2817278314,2492574735,1825041095,3052059216,0,0,0], targetAnnual: 27002111776, targetMonths: [3623997691,2077067011,4046871896,3790564061,3221725676,2802312322,2735680973,1422613383,3281278763,0,0,0] },
+  { id: "B002452", name: "해운대 엘마르 스위첸", period: "2022/12~2026/04", planAnnual: 19709438558, planMonths: [3663592068,4596602325,5964205897,5394138268,0,0,0,0,0,0,0,90900000], actualAnnual: 19324419127, actualMonths: [3641928687,4528942654,6485904608,4667643178,0,0,0,0,0,0,0,0], targetAnnual: 19324419127, targetMonths: [3641928687,4528942654,6485904608,4667643178,0,0,0,0,0,0,0,0] },
+  { id: "B002595", name: "성수동 삼원 업무시설", period: "2023/11~2026/10", planAnnual: 28717318286, planMonths: [3259116241,4509207663,3846514603,3415601805,3846259177,2341131914,7499486883,0,0,0,0,0], actualAnnual: 28559796286, actualMonths: [3308632251,4312462849,4064734954,3532057141,4714755504,2324304651,6302848936,0,0,0,0,0], targetAnnual: 28559796286, targetMonths: [3308632251,4312462849,4064734954,3532057141,4714755504,2232672180,6394481407,0,0,0,0,0] },
+  { id: "B002969", name: "대구 헌병대 통합공사", period: "2026/01~2029/12", planAnnual: 4233295141, planMonths: [58702637,100804123,149684709,172492322,352284410,529997978,527675230,319823105,236682255,596354768,643883276,544910328], actualAnnual: 4488251048, actualMonths: [58774290,119624582,245204128,164906933,248279799,284059194,509565396,549953206,416451841,639904317,674540229,576987133], targetAnnual: 4192845501, targetMonths: [58774290,119624582,245204128,164906933,248279799,270433437,281718802,498260741,418475576,503634277,732591014,650941922] },
+  { id: "B001564", name: "대전 르에브 스위첸", period: "2021/11~2027/08", planAnnual: 132866590891, planMonths: [10889329107,12639742742,14676815194,11139089553,10605921802,11207786454,10491030540,9177564063,10931227957,10440315604,9626115275,11041652600], actualAnnual: 133102827862, actualMonths: [10846025529,12745390965,14671225336,11136321180,10602126223,11183153123,9689543314,9627163313,10932745087,10547152528,10038174282,11083806982], targetAnnual: 134477445039, targetMonths: [10846025529,12745390965,14671225336,11136321180,10602126223,11193820509,10483396770,9271587027,11264283491,10800523542,10346344838,11116399629] },
+  { id: "B001951", name: "역곡역 아테움 스위첸", period: "2023/09~2026/01", planAnnual: 1409668440, planMonths: [1409668440,0,0,0,0,0,0,0,0,0,0,0], actualAnnual: 1409668302, actualMonths: [1409668302,0,0,0,0,0,0,0,0,0,0,0], targetAnnual: 1409668302, targetMonths: [1409668302,0,0,0,0,0,0,0,0,0,0,0] },
+  { id: "B002549", name: "평택 사무3동 신축공사", period: "2023/02~2027/09", planAnnual: 13649297837, planMonths: [417831771,1938852991,3787054149,2150846853,5354712073,0,0,0,0,0,0,0], actualAnnual: 13650359857, actualMonths: [452837131,2019135794,3857751373,2896677351,1729375520,2387138059,186011344,121433285,0,0,0,0], targetAnnual: 13797728677, targetMonths: [452837131,2019135794,3857751373,2896677351,1729375520,2388830950,199584848,129670713,123864997,0,0,0] },
+  { id: "B002588", name: "안성 당목리 물류센터", period: "2024/08~2026/06", planAnnual: 43096133512, planMonths: [5632464429,6742861406,9578395152,8211598847,6492332911,6438480767,0,0,0,0,0,0], actualAnnual: 43204687990, actualMonths: [5589510799,7080923431,9513456539,8561012657,6304845299,6154939265,0,0,0,0,0,0], targetAnnual: 43204687990, targetMonths: [5589510799,7080923431,9513456539,8561012657,6304845299,6154939265,0,0,0,0,0,0] },
+  { id: "B002617", name: "역곡역 아테움 스위첸(발코니)", period: "2023/09~2026/01", planAnnual: 46280588, planMonths: [46280588,0,0,0,0,0,0,0,0,0,0,0], actualAnnual: 46280588, actualMonths: [46280588,0,0,0,0,0,0,0,0,0,0,0], targetAnnual: 46280588, targetMonths: [46280588,0,0,0,0,0,0,0,0,0,0,0] },
+  { id: "B002620", name: "아주대병원 부속주차장(파워플랜트) 설치공사", period: "2024/03~2026/08", planAnnual: 10460946371, planMonths: [4553188306,2497669104,460548587,256090978,339073666,134212654,440066123,1780096953,0,0,0,0], actualAnnual: 10480946371, actualMonths: [4535655750,2460924343,454557926,315139339,351039397,1431318195,257045374,675266047,0,0,0,0], targetAnnual: 10480946371, targetMonths: [4535655750,2460924343,454557926,315139339,351039397,1431852894,124092477,807684245,0,0,0,0] },
+  { id: "B002639", name: "다이소 세종 허브센터 신축공사", period: "2024/08~2026/09", planAnnual: 57940940672, planMonths: [8065547309,5787154976,6723046947,6372874976,5438439634,5389774344,5326969792,4570343726,10266788968,0,0,0], actualAnnual: 57940940280, actualMonths: [8094288088,5602136777,6115731805,6223801271,5395067055,5266799068,5200990258,5717371607,10324754351,0,0,0], targetAnnual: 58420984910, targetMonths: [8094288088,5602136777,6115731805,6223801271,5395067055,5371666322,5461442841,7278899700,8877951051,0,0,0] },
+  { id: "B002910", name: "부천 NH 도심형 복합물류센터(Pre-con)", period: "2026/11~2028/09", planAnnual: 3444083696, planMonths: [0,0,0,0,0,0,0,0,0,0,1184057609,2260026087], actualAnnual: 3175600000, actualMonths: [0,0,0,0,0,0,0,0,0,0,1091754348,2083845652], targetAnnual: 3175600000, targetMonths: [0,0,0,0,0,0,0,0,0,0,1091754348,2083845652] },
+  { id: "B002995", name: "ㅇㅇㅇ 업무시설", period: "2026/10~2029/12", planAnnual: 2115394932, planMonths: [0,0,0,0,0,0,0,0,0,392592783,1033023405,689778744], actualAnnual: 2115394919, actualMonths: [0,0,0,0,0,0,0,0,0,392592780,1033023399,689778740], targetAnnual: 2115394919, targetMonths: [0,0,0,0,0,0,0,0,0,392592780,1033023399,689778740] },
+  { id: "B002351", name: "(2026)OOO 창고시설", period: "2026/05~2027/12", planAnnual: 3755701087, planMonths: [0,0,0,0,0,0,0,0,197730435,841230435,1496430434,1220309783], actualAnnual: 3755701087, actualMonths: [0,0,0,0,0,0,0,0,197730435,841230435,1496430434,1220309783], targetAnnual: 3755701087, targetMonths: [0,0,0,0,0,0,0,0,197730435,841230435,1496430434,1220309783] },
+  { id: "B002325", name: "여의도 오피스텔 신축", period: "2022/01~2026/10", planAnnual: 46949913946, planMonths: [2242227198,2559053065,6227812765,5558558004,5255618362,5779563675,5897284862,4586407373,4562484691,4280903951,0,0], actualAnnual: 48412818417, actualMonths: [2236415169,2588650728,6210485547,5458046986,5033528780,6074432181,6101843832,4985604912,5010635206,4713175076,0,0], targetAnnual: 48412818417, targetMonths: [2236415169,2588650728,6210485547,5458046986,5033528780,6237782818,6103675389,4671788183,4822616976,5049827841,0,0] },
+  { id: "B002604", name: "울진 500kV 동해안 변환소", period: "2024/04~2027/10", planAnnual: 58300045212, planMonths: [4149392456,3864056732,5985857135,5995676490,5177669976,4806582913,5030395784,4933264118,4422299175,4105364096,6483029300,3346457037], actualAnnual: 59396385296, actualMonths: [4149392456,3945964105,6244843832,6194428212,5220589828,4955361162,5054721684,4947862858,4415150757,4200978365,6589598579,3477493458], targetAnnual: 59496743548, targetMonths: [4149392456,3945964105,6244843832,6194428212,5220589828,4890677455,5260943006,4950200543,4390121244,4205859075,6575576414,3468147378] },
+  { id: "B002719", name: "대전 르에브 스위첸(발코니)", period: "2021/11~2027/08", planAnnual: 12920935653, planMonths: [1340550402,883937901,942512100,931862246,1180802589,1116903463,1154177953,1050341874,1195446138,1068979119,792082909,1263338959], actualAnnual: 13037401091, actualMonths: [1454777284,883258889,924053469,911043087,843616556,1426630932,1202683052,1105915451,1105915451,1105915450,829436588,1244154882], targetAnnual: 13283492943, targetMonths: [1454777284,883258889,924053469,911043087,843616556,1385901724,1025885474,1037692024,1371630148,1252957923,959037177,1233639188] },
+  { id: "B002971", name: "여주 무신사 물류센터", period: "2025/11~2028/11", planAnnual: 65603012481, planMonths: [1211959360,916002014,1368355223,4745439091,4212976894,5102273601,6428111179,7038970740,8451747052,8416463185,8668057275,9042656867], actualAnnual: 65606232125, actualMonths: [1165542807,1099129904,1838221790,3581387476,4372885281,5187692439,7003314869,7624389703,9215760484,10304133433,8832692501,5381081438], targetAnnual: 70605126580, targetMonths: [1165542807,1099129904,1838221790,3581387476,4372885281,5422583934,7517092790,8517966813,9387433625,10274864179,8956500232,8471517749] },
+  { id: "B002261", name: "오퍼스 한강 스위첸", period: "2025/06~2028/08", planAnnual: 95527063728, planMonths: [2730605298,7080898283,8800629572,8801073997,7149747832,7263833402,5188859944,6170820619,8129894631,10330362735,11279587081,12600750334], actualAnnual: 96935276153, actualMonths: [2730605298,7144124621,8932948346,9238553547,7757542012,8365691474,4988615532,6807215626,8115998190,10216644163,10641809674,11995527670], targetAnnual: 100735299365, targetMonths: [2730605298,7144124621,8932948346,9238553547,7757542012,8428416369,4557923972,7933457190,9322376729,9875464814,10714559323,14099327144] },
+  { id: "B002781", name: "청주 시청사 건립공사", period: "2025/06~2028/09", planAnnual: 15085696673, planMonths: [968883101,831444006,1097871255,1162729297,1451792024,830266099,770607682,1075687429,1467348038,1579240149,1790316622,2059510971], actualAnnual: 15333586780, actualMonths: [803203734,865630698,1869662086,1028485191,1102349921,1110947165,938074509,996030278,1469163561,1678540700,1709685634,1761813303], targetAnnual: 14415881600, targetMonths: [803203734,865630698,1869662086,1028485191,1102349921,1036138826,939119958,1058307692,1273023647,1485418489,1668797458,1285743900] },
+  { id: "B002996", name: "중앙대학교 서울캠퍼스 205관 신축공사", period: "2026/04~2031/02", planAnnual: 4498148818, planMonths: [0,0,0,0,126728374,518726127,960843169,960843170,703787500,465376168,476268169,285576141], actualAnnual: 5166199640, actualMonths: [0,0,0,573194209,426750989,398673777,692453853,755404758,616913882,616913881,566553529,519340762], targetAnnual: 6107557242, targetMonths: [0,0,0,573194209,426750989,537470249,427048937,780910469,1101241787,1239418928,599819767,421701907] },
+  { id: "B002748", name: "수서 역세권 3블록 업무시설", period: "2025/04~2028/05", planAnnual: 25354164899, planMonths: [1589888264,1231326245,1804238174,2082308225,2213590120,2282177034,1463153656,1627825651,1790811054,2874336195,3615225201,2779285080], actualAnnual: 26544038566, actualMonths: [1599286515,1270704983,2862052965,2635045611,2410494354,1657583882,1683890862,2094966656,2353670291,2425025472,2944667668,2606649307], targetAnnual: 27075750286, targetMonths: [1599286515,1270704983,2862052965,2635045611,2410494354,1543227321,1659423661,2092362206,2307168907,2430643906,3140395938,3124943919] },
+  { id: "B002801", name: "KCC실리콘 전주공장 GELBLEND 신축공사", period: "2025/09~2026/05", planAnnual: 4462593222, planMonths: [825434666,577271716,1157295607,1188954300,713636933,0,0,0,0,0,0,0], actualAnnual: 5160540222, actualMonths: [825188859,577864761,1124153811,1000189625,1633143166,0,0,0,0,0,0,0], targetAnnual: 5160540222, targetMonths: [825188859,577864761,1124153811,1000189625,1633143166,0,0,0,0,0,0,0] },
+];
+const DEFAULT_TOTAL_CONSTRUCTION = {
+  planAnnual: 1156955278996,
+  planToDate: 721687259499,
+  actualToDate: 677729701290,
+  actualAnnual: 1099110375113,
+  targetToDate: 677864565438,
+  targetAnnual: 1106871168226,
+};
+
+const MONTHS = ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"];
+let REVIEW_IDX = 6; // 7월(조회월), 0-based - 조회월 선택 시 변경됨
+let REVIEW_MONTH = MONTHS[REVIEW_IDX];
+function setReviewMonth(idx) { REVIEW_IDX = idx; REVIEW_MONTH = MONTHS[idx]; }
+
+function sumTo(arr, n) { return arr.slice(0, n).reduce((a, b) => a + b, 0); }
+function classifyStage(site) { return sumTo(site.actualMonths, REVIEW_IDX + 1) > 0 ? "ongoing" : "new"; }
+function classify(gapPct) {
+  // 달성률 기준: 100% 이상 정상, 90~100% 미만 주의, 90% 미만 경보
+  if (gapPct > 10) return { key: "severe", label: "경보" };
+  if (gapPct > 0) return { key: "caution", label: "주의" };
+  return { key: "normal", label: "정상" };
+}
+function siteStats(s) {
+  const planToDate = sumTo(s.planMonths, REVIEW_IDX + 1);
+  const actualToDate = sumTo(s.actualMonths, REVIEW_IDX + 1);
+  const targetToDate = sumTo(s.targetMonths, REVIEW_IDX + 1);
+  const gapPct = planToDate > 0 ? Math.round(100 - (actualToDate / planToDate) * 100) : 0;
+  const planAnnual = s.planAnnual || 1;
+  return {
+    planToDate, actualToDate, targetToDate, gapPct,
+    reviewLinePct: Math.round((planToDate / planAnnual) * 100),
+    actualRel: Math.round((actualToDate / planAnnual) * 100),
+    actualForecastRel: Math.round((s.actualAnnual / planAnnual) * 100),
+    targetRel: Math.round((targetToDate / planAnnual) * 100),
+    targetForecastRel: Math.round((s.targetAnnual / planAnnual) * 100),
+    // 1~조회월 누계 계획 대비 달성률 (말풍선용)
+    actualAchieveToDate: planToDate > 0 ? Math.round((actualToDate / planToDate) * 100) : 0,
+    targetAchieveToDate: planToDate > 0 ? Math.round((targetToDate / planToDate) * 100) : 0,
+  };
+}
+function totalStatsOf(total) {
+  const gapPct = total.planToDate > 0 ? Math.round(100 - (total.actualToDate / total.planToDate) * 100) : 0;
+  return {
+    gapPct, status: classify(gapPct),
+    reviewLinePct: Math.round((total.planToDate / total.planAnnual) * 100),
+    actualRel: Math.round((total.actualToDate / total.planAnnual) * 100),
+    actualForecastRel: Math.round((total.actualAnnual / total.planAnnual) * 100),
+    targetRel: Math.round((total.targetToDate / total.planAnnual) * 100),
+    targetForecastRel: Math.round((total.targetAnnual / total.planAnnual) * 100),
+    actualAchieveToDate: total.planToDate > 0 ? Math.round((total.actualToDate / total.planToDate) * 100) : 0,
+    targetAchieveToDate: total.planToDate > 0 ? Math.round((total.targetToDate / total.planToDate) * 100) : 0,
+  };
+}
+function achvStatusOf(pct) {
+  if (pct >= 100) return "good";
+  if (pct >= 90) return "warn";
+  return "bad";
+}
+// 현장 상세 페이지 "발주" 칸: 주요 공종(CP) 선정 진행 현황 (전 현장 공통, 월별 4주 단위)
+const DEFAULT_CP_NAMES = ["철거", "토공및흙막이", "철골", "철근콘크리트", "전기", "통신", "일반배관", "타워크레인", "AL창호", "유리", "엘리베이터", "내장", "조경"];
+const cpStore = {}; // cpStore[divKey][siteId] = [ {id, name, construction:{order:[48], vendor:[48]}, procurement:{survey:[48], bid:[48], contract:[48]}} ]
+function blank48() { return new Array(48).fill(false); }
+function makeCP(name) {
+  return {
+    id: `cp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    name,
+    construction: { order: blank48(), vendor: blank48() },
+    procurement: { survey: blank48(), bid: blank48(), contract: blank48() },
+  };
+}
+function ensureCPData(divKey, siteId) {
+  if (!cpStore[divKey]) cpStore[divKey] = {};
+  if (!cpStore[divKey][siteId]) cpStore[divKey][siteId] = DEFAULT_CP_NAMES.map((n) => makeCP(n));
+  return cpStore[divKey][siteId];
+}
+async function persistCPData(divKey) {
+  try {
+    if (window.storage) await window.storage.set(`cp-data-${divKey}`, JSON.stringify(cpStore[divKey] || {}));
+  } catch (e) { /* 저장 실패해도 화면 동작에는 지장 없음 */ }
+}
+
+// 업체선정(건축/인프라팀) → 계약(외주구매팀) 지연일 계산
+function lastCheckedWeek(arr) {
+  for (let i = arr.length - 1; i >= 0; i--) if (arr[i]) return i;
+  return -1;
+}
+function currentWeekIdx() { return REVIEW_IDX * 4 + 3; } // 조회월 마지막 주 기준
+function cpDelayInfo(cp) {
+  const vendorWeek = lastCheckedWeek(cp.construction.vendor);
+  const contractWeek = lastCheckedWeek(cp.procurement.contract);
+  if (vendorWeek === -1 || contractWeek === -1) {
+    return { state: "missing", days: 0 }; // 건축/인프라팀·외주구매팀 중 체크가 하나도 없는 경우
+  }
+  const days = contractWeek - vendorWeek > 0 ? (contractWeek - vendorWeek) * 7 : 0;
+  return days > 0 ? { state: "bad", days } : { state: "ok", days: 0 };
+}
+function countDelayedCPs(divKey, sites) {
+  let count = 0;
+  sites.forEach((s) => {
+    const cps = ensureCPData(divKey, s.id);
+    cps.forEach((cp) => { if (cpDelayInfo(cp).state === "bad") count++; });
+  });
+  return count;
+}
+function getDelayList(divKey, sites) {
+  const rows = [];
+  sites.forEach((s) => {
+    const cps = ensureCPData(divKey, s.id);
+    cps.forEach((cp) => {
+      const info = cpDelayInfo(cp);
+      if (info.state === "bad") rows.push({ siteId: s.id, siteName: s.name, cpName: cp.name, days: info.days });
+    });
+  });
+  rows.sort((a, b) => b.days - a.days);
+  return rows;
+}
+function delayListPageHTML(div) {
+  const rows = getDelayList(state.activeDivision, div.sites);
+  const body = rows.length === 0
+    ? `<div class="empty-note">지연된 공종이 없습니다.</div>`
+    : rows.map((r) => `
+      <div class="delay-row" data-site="${r.siteId}">
+        <span class="delay-days-badge">${r.days}일</span>
+        <span class="delay-info"><span class="delay-site">${r.siteName}</span><span class="delay-cp">${r.cpName}</span></span>
+        <span class="chevron">›</span>
+      </div>`).join("");
+  return `
+    <button class="back-btn">‹ 목록으로</button>
+    <header class="detail-header">
+      <div class="panel-eyebrow">${div.label} · 지연 현황</div>
+      <h1 class="detail-title">업체선정 → 계약 지연 공종</h1>
+      <p class="cover-sub">총 ${rows.length}건의 공종이 지연되고 있습니다. 항목을 누르면 해당 현장 상세로 이동합니다.</p>
+    </header>
+    <section class="panel delay-list-panel">
+      <div class="delay-list">${body}</div>
+    </section>
+  `;
+}
+
+function cpCheckRowHTML(divKey, siteId, cpId, team, item, itemLabel, arr) {
+  const cells = [];
+  for (let w = 0; w < 48; w++) {
+    const checked = !!arr[w];
+    cells.push(`<td class="cp-cell"><button type="button" class="cp-toggle-cell team-${team} ${checked ? "on" : ""}" data-division="${divKey}" data-site="${siteId}" data-cp="${cpId}" data-team="${team}" data-item="${item}" data-week="${w}"></button></td>`);
+  }
+  return `<tr><td class="cp-item-label">${itemLabel}</td>${cells.join("")}</tr>`;
+}
+
+function cpCardHTML(divKey, siteId, cp) {
+  const monthHeaderRow = MONTHS.map((m) => `<th colspan="4">${m}</th>`).join("");
+  const weekHeaderRow = MONTHS.map(() => `<th>1</th><th>2</th><th>3</th><th>4</th>`).join("");
+  const colgroup = `<colgroup><col class="cp-col-label"/>${Array.from({ length: 48 }).map(() => `<col class="cp-col-week"/>`).join("")}</colgroup>`;
+  const delay = cpDelayInfo(cp);
+  const delayBadge = delay.state === "missing"
+    ? `<span class="cp-delay-badge cp-delay-missing">지연일 : 체크박스 입력 필요</span>`
+    : delay.state === "ok"
+      ? `<span class="cp-delay-badge cp-delay-ok">지연일 : OK</span>`
+      : `<span class="cp-delay-badge cp-delay-bad">지연일 : ${delay.days}일</span>`;
+  return `<div class="cp-card">
+    <div class="cp-card-header">
+      <input type="text" class="cp-name-input" data-cp="${cp.id}" value="${cp.name}" />
+      ${delayBadge}
+      <button class="cp-del-btn" data-cp="${cp.id}" title="공종 삭제">✕</button>
+    </div>
+    <div class="cp-table-scroll">
+      <table class="cp-table">
+        ${colgroup}
+        <thead>
+          <tr><th class="cp-label-th" rowspan="2"></th>${monthHeaderRow}</tr>
+          <tr>${weekHeaderRow}</tr>
+        </thead>
+        <tbody>
+          <tr class="cp-team-divider"><td colspan="49">건축/인프라팀</td></tr>
+          ${cpCheckRowHTML(divKey, siteId, cp.id, "construction", "order", "발주", cp.construction.order)}
+          ${cpCheckRowHTML(divKey, siteId, cp.id, "construction", "vendor", "업체선정", cp.construction.vendor)}
+          <tr class="cp-team-divider"><td colspan="49">외주구매팀</td></tr>
+          ${cpCheckRowHTML(divKey, siteId, cp.id, "procurement", "survey", "현설", cp.procurement.survey)}
+          ${cpCheckRowHTML(divKey, siteId, cp.id, "procurement", "bid", "입찰", cp.procurement.bid)}
+          ${cpCheckRowHTML(divKey, siteId, cp.id, "procurement", "contract", "계약", cp.procurement.contract)}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function cpSectionHTML(divKey, siteId) {
+  const cps = ensureCPData(divKey, siteId);
+  return `<div class="cp-section">
+    <div class="ap-col-title">주요 공종(CP) 선정 진행 현황</div>
+    <div class="cp-list">${cps.map((cp) => cpCardHTML(divKey, siteId, cp)).join("")}</div>
+    <button class="cp-add-btn" data-division="${divKey}" data-site="${siteId}">+ 공종 추가</button>
+  </div>`;
+}
+
+const ACTION_PLANS = {
+  severe: ["긴급 공정회의 개최 및 만회대책 수립", "협력사 인력·장비 긴급 투입 요청", "본부장 보고 및 주간 진도 점검 강화"],
+  caution: ["지연 공종 집중 관리 및 자원 재배치", "주간 공정점검 강화", "협력사 공정 이행 독려"],
+  normal: ["현재 진행 속도 유지", "정기 모니터링 지속", "리스크 요인 사전 점검"],
+};
+
+// ── 갑지 페이지(경보 발령 단계 현황) - 정상/주의 단계 Flow 다이어그램 ─────────
+const TRACK_A_STEPS = [
+  { name: "예산승인", main: "인프라/건축", support: "공사지원팀" },
+  { name: "외주/자재 발주", main: "인프라/건축팀", support: "외주구매팀" },
+  { name: "계약", main: "외주구매팀", support: "인프라/건축팀" },
+];
+const TRACK_B_STEPS = [
+  { name: "현황", main: "인프라/건축팀", support: "공사지원팀" },
+  { name: "부지임대/민원처리", main: "인프라/건축팀", support: "공사지원팀" },
+  { name: "실행예산집행", main: "인프라/건축팀", support: "공사지원팀" },
+];
+function flowTrackHTML(trackLabel, steps, actionStepHTML) {
+  const stepsHtml = steps.map((s, i) => `
+    <div class="flow-step">
+      <div class="flow-step-name">${s.name}</div>
+      <div class="flow-step-roles">
+        <span class="flow-step-role"><span class="flow-role-tag main">주</span>${s.main}</span>
+        <span class="flow-step-role"><span class="flow-role-tag support">부</span>${s.support}</span>
+      </div>
+    </div>
+    ${i < steps.length - 1 ? `<div class="flow-arrow">→</div>` : ""}
+  `).join("");
+  return `<div class="flow-track">
+    <div class="flow-track-label">${trackLabel}</div>
+    <div class="flow-diagram">${stepsHtml}${actionStepHTML}</div>
+  </div>`;
+}
+function trackADelayActionHTML(divKey, sites) {
+  const count = countDelayedCPs(divKey, sites);
+  const cls = count > 0 ? "bad" : "ok";
+  const text = count > 0 ? `업체선정→계약 지연 공종 ${count}건` : `업체선정→계약 지연 공종 없음`;
+  return `<button type="button" class="flow-step flow-step-action ${cls}" id="cp-delay-summary-btn">
+    <div class="flow-step-name">${text}</div>
+    <div class="flow-step-cta">자세히 보기 ›</div>
+  </button>`;
+}
+function trackBStatusActionHTML() {
+  return `<div class="flow-step flow-step-action placeholder">
+    <div class="flow-step-name">"현황" 데이터 집계</div>
+    <div class="flow-step-cta muted">준비 중</div>
+  </div>`;
+}
+function countermeasureSectionHTML() {
+  return `<div class="ap-flow-title">대책 방안 모색</div>
+  <button type="button" class="countermeasure-btn" id="countermeasure-btn">
+    <span>검토 의견</span><span class="chevron">›</span>
+  </button>`;
+}
+function coverActionPlanBodyHTML(divKey, div, statusKey) {
+  const trackA = flowTrackHTML("1. Track A", TRACK_A_STEPS, trackADelayActionHTML(divKey, div.sites));
+  const trackB = flowTrackHTML("2. Track B", TRACK_B_STEPS, trackBStatusActionHTML());
+  const countermeasure = (statusKey === "caution" || statusKey === "severe") ? countermeasureSectionHTML() : "";
+  const severeExtra = statusKey === "severe" ? `<div class="cm-extra-note">+ 특별(돌관) 공사 투입 검토</div>` : "";
+  return `
+    <div class="ap-flow-title">주요 공종 착수 Flow 확인 점검</div>
+    <div class="flow-tracks">${trackA}${trackB}</div>
+    ${countermeasure}
+    ${severeExtra}
+  `;
+}
+
+// ── 대책 방안 모색 (주의 단계) - 팀별 의견 ──────────────────────────
+const countermeasureNotes = {}; // countermeasureNotes[divKey] = { infra, support, procurement }
+function ensureCountermeasure(divKey) {
+  if (!countermeasureNotes[divKey]) countermeasureNotes[divKey] = { infra: "", support: "", procurement: "" };
+  return countermeasureNotes[divKey];
+}
+async function persistCountermeasure(divKey) {
+  try {
+    if (window.storage) await window.storage.set(`countermeasure-${divKey}`, JSON.stringify(countermeasureNotes[divKey] || {}));
+  } catch (e) { /* 저장 실패해도 화면 동작에는 지장 없음 */ }
+}
+function countermeasurePageHTML(div) {
+  const notes = ensureCountermeasure(state.activeDivision);
+  const teamField = (key, label) => `
+    <div class="cm-field">
+      <label class="cm-label">${label}</label>
+      <textarea class="cm-textarea" data-division="${state.activeDivision}" data-team="${key}" placeholder="${label} 의견을 입력하세요">${notes[key] || ""}</textarea>
+    </div>`;
+  return `
+    <button class="back-btn">‹ 목록으로</button>
+    <header class="detail-header">
+      <div class="panel-eyebrow">${div.label} · 주의 단계 Action Plan</div>
+      <h1 class="detail-title">대책 방안 모색</h1>
+      <p class="cover-sub">팀별로 대책 방안에 대한 의견을 입력해주세요.</p>
+    </header>
+    <section class="panel cm-panel">
+      ${teamField("infra", "인프라/건축팀")}
+      ${teamField("support", "공사지원팀")}
+      ${teamField("procurement", "외주구매팀")}
+    </section>
+  `;
+}
+
+// 현장 상세 페이지 "현안" 칸 (항목은 추후 현장별로 입력)
+const ACTION_PLAN_ISSUES = {}; // ACTION_PLAN_ISSUES[siteId] = [items]
+function siteActionPlanHTML(status, divKey, siteId) {
+  const issues = ACTION_PLAN_ISSUES[siteId] || [];
+  const issueHTML = issues.length ? `<ul class="ap-list">${issues.map((i) => `<li>${i}</li>`).join("")}</ul>` : `<div class="ap-col-empty">등록된 항목이 없습니다.</div>`;
+  return `<div class="panel action-plan-panel ap-${status.key}">
+    <div class="ap-header">
+      <span class="ap-badge ap-badge-${status.key}">현재 단계 · ${status.label}</span>
+      <span class="ap-title">Action Plan</span>
+    </div>
+    <ul class="ap-list">${ACTION_PLANS[status.key].map((item) => `<li>${item}</li>`).join("")}</ul>
+    <div class="ap-columns">
+      <div class="ap-col ap-col-wide">
+        <div class="ap-col-title">발주</div>
+        ${cpSectionHTML(divKey, siteId)}
+      </div>
+      <div class="ap-col">
+        <div class="ap-col-title">현안</div>
+        ${issueHTML}
+      </div>
+    </div>
+  </div>`;
+}
+function tickSet(maxScale) {
+  const ticks = [];
+  for (let t = 0; t <= maxScale; t += 20) ticks.push(t);
+  return ticks;
+}
+function fmtEok(n, digits) {
+  return (n / 1e8).toLocaleString(undefined, { maximumFractionDigits: digits == null ? 0 : digits }) + "억";
+}
+function computeTotal(sites) {
+  return {
+    planAnnual: sites.reduce((a, s) => a + s.planAnnual, 0),
+    planToDate: sites.reduce((a, s) => a + sumTo(s.planMonths, REVIEW_IDX + 1), 0),
+    actualToDate: sites.reduce((a, s) => a + sumTo(s.actualMonths, REVIEW_IDX + 1), 0),
+    actualAnnual: sites.reduce((a, s) => a + s.actualAnnual, 0),
+    targetToDate: sites.reduce((a, s) => a + sumTo(s.targetMonths, REVIEW_IDX + 1), 0),
+    targetAnnual: sites.reduce((a, s) => a + s.targetAnnual, 0),
+  };
+}
+
+// ── 엑셀 파싱 (계획/실적추정/추진목표 공통 구조) ──────────────────────
+function findColIndex(headerRow, label) {
+  for (let i = 0; i < headerRow.length; i++) {
+    if (headerRow[i] === label) return i;
+  }
+  return -1;
+}
+async function readWorkbookRows(file) {
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type: "array" });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  return XLSX.utils.sheet_to_json(ws, { header: 1, defval: 0, raw: true });
+}
+function parseFileRows(rows) {
+  const header1 = rows[0] || [];
+  const header2 = rows[1] || [];
+  const nameIdx = findColIndex(header1, "현장명");
+  const periodIdx = findColIndex(header1, "공사기간");
+  const annualIdx = findColIndex(header1, "2026합계");
+  const sitecdIdx = findColIndex(header1, "현장코드");
+  const monthIdx = {};
+  for (let m = 1; m <= 12; m++) monthIdx[m] = findColIndex(header2, `${m}월`);
+  const data = {};
+  for (let r = 2; r < rows.length; r++) {
+    const row = rows[r];
+    if (!row) continue;
+    const name = row[nameIdx];
+    const sitecd = row[sitecdIdx];
+    if (!name || !sitecd) continue; // 소계/합계 등 빈 코드 행 제외
+    const months = [];
+    for (let m = 1; m <= 12; m++) months.push(Number(row[monthIdx[m]]) || 0);
+    data[sitecd] = {
+      name: String(name),
+      period: header1[periodIdx] != null ? String(row[periodIdx] || "") : "",
+      annual: Number(row[annualIdx]) || 0,
+      months,
+    };
+  }
+  return data;
+}
+async function extractSitesFromFiles(planFile, actualFile, targetFile) {
+  const [planRows, actualRows, targetRows] = await Promise.all([
+    readWorkbookRows(planFile), readWorkbookRows(actualFile), readWorkbookRows(targetFile),
+  ]);
+  const plan = parseFileRows(planRows);
+  const actual = parseFileRows(actualRows);
+  const target = parseFileRows(targetRows);
+  const active = Object.keys(plan).filter((k) => plan[k].annual > 0);
+  const common = active.filter((k) => actual[k] && target[k]);
+  if (common.length === 0) {
+    throw new Error("세 파일에서 공통으로 매칭되는 현장을 찾지 못했습니다. 파일 형식(현장코드, 2026합계, 월별 컬럼)을 확인해주세요.");
+  }
+  const sites = common.map((k) => ({
+    id: k, name: plan[k].name, period: plan[k].period,
+    planAnnual: plan[k].annual, planMonths: plan[k].months,
+    actualAnnual: actual[k].annual, actualMonths: actual[k].months,
+    targetAnnual: target[k].annual, targetMonths: target[k].months,
+  }));
+  return { sites, total: computeTotal(sites) };
+}
+
+// ── 렌더 헬퍼 (막대/미니바/총괄패널/추이차트) ─────────────────────────
+function rulerHTML(maxScale) {
+  maxScale = maxScale || 100;
+  const ticks = tickSet(maxScale);
+  return `<div class="ruler">${ticks.map(t => `<span class="ruler-tick" style="left:${(t / maxScale) * 100}%">${t}</span>`).join("")}</div>`;
+}
+function miniBarHTML(site) {
+  const st = siteStats(site);
+  const status = classify(st.gapPct);
+  return `<div class="mini-bar"><div class="mini-bar-track">
+    <div class="mini-bar-fill fill-${status.key}" style="width:${Math.min(100, st.actualRel)}%"></div>
+    <div class="mini-marker plan" style="left:${Math.min(100, st.reviewLinePct)}%"></div>
+    <div class="mini-marker target" style="left:${Math.min(100, st.targetRel)}%"></div>
+  </div></div>`;
+}
+function fullBarHTML(opt) {
+  const maxScale = opt.maxScale || 100;
+  const pct = Math.min(100, (opt.value / maxScale) * 100);
+  const pctForecast = opt.forecastValue != null ? Math.min(100, (opt.forecastValue / maxScale) * 100) : null;
+  const achv = opt.achieveToDate != null ? achvStatusOf(opt.achieveToDate) : null;
+  const headline = opt.display != null
+    ? opt.display
+    : (opt.forecastValue != null ? `${opt.forecastValue}% (12월 예상)` : `${opt.value}%`);
+  const grid = tickSet(maxScale).map(t => `<div class="grid-line" style="left:${(t / maxScale) * 100}%"></div>`).join("");
+  const forecastHTML = (pctForecast != null && pctForecast > pct)
+    ? `<div class="full-bar-forecast v-${opt.variant}" style="left:${pct}%;width:${pctForecast - pct}%"></div>` : "";
+  const reviewHTML = opt.reviewLinePct != null
+    ? `<div class="review-line" style="left:${Math.min(100, (opt.reviewLinePct / maxScale) * 100)}%">${opt.showReviewLabel ? `<span class="review-label">현재(${REVIEW_MONTH})</span>` : ""}</div>` : "";
+  const bubbleHTML = opt.achieveToDate != null
+    ? `<div class="achv-anchor" style="left:${pct}%"><div class="achv-bubble achv-${achv}"><span class="achv-cap">${REVIEW_MONTH}까지 달성률</span><strong class="achv-val">${opt.achieveToDate}%</strong></div></div>` : "";
+  return `<div class="full-bar-row">
+    <div class="full-bar-label"><span class="fb-name">${opt.label}</span><span class="fb-value">${headline}</span></div>
+    <div class="full-bar-track">
+      <div class="grid-lines">${grid}</div>
+      <div class="full-bar-fill v-${opt.variant}" style="width:${pct}%"><span class="fill-sheen"></span></div>
+      ${forecastHTML}${reviewHTML}${bubbleHTML}
+    </div>
+  </div>`;
+}
+function totalAmountPanelHTML(div) {
+  const total = computeTotal(div.sites);
+  const st = totalStatsOf(total);
+  const maxScale = Math.max(120, Math.ceil(Math.max(100, st.actualForecastRel, st.targetForecastRel) / 20) * 20);
+  const targetIsShortfall = st.targetForecastRel < 100;
+  let bars = fullBarHTML({
+    label: "계획금액", value: 100, display: `100% (${fmtEok(total.planAnnual)})`,
+    variant: "plan", maxScale, reviewLinePct: st.reviewLinePct, showReviewLabel: true,
+  });
+  bars += fullBarHTML({
+    label: "실적추정금액", value: st.actualRel, forecastValue: st.actualForecastRel,
+    display: `${st.actualForecastRel}% (${fmtEok(total.actualAnnual)})`,
+    achieveToDate: st.actualAchieveToDate,
+    variant: st.status.key, maxScale, reviewLinePct: st.reviewLinePct,
+  });
+  if (targetIsShortfall) {
+    bars += fullBarHTML({
+      label: "추진목표금액", value: st.targetRel, forecastValue: st.targetForecastRel,
+      display: `${st.targetForecastRel}% (${fmtEok(total.targetAnnual)})`,
+      achieveToDate: st.targetAchieveToDate,
+      variant: "target", maxScale, reviewLinePct: st.reviewLinePct,
+    });
+  }
+  return `<div class="panel total-panel">
+    <div class="panel-eyebrow">총괄 합계 금액 기준(2026년, ${div.sites.length}개 현장) · 계획 100% 대비 비율</div>
+    ${bars}
+    ${rulerHTML(maxScale)}
+    <div class="panel-note">
+      ${!targetIsShortfall ? "추진목표금액은 계획 대비 미달일 때만 표시됩니다. " : ""}
+      막대의 % 값은 1~12월 전체 기준 달성률(옅은 사선 구간은 각 파일에 입력된 9~12월 추정치 반영), 말풍선은 1~${REVIEW_MONTH} 누계 계획 대비 실적·목표 달성률입니다.
+    </div>
+  </div>`;
+}
+let trendGeom = null; // 호버 툴팁 계산용 현재 차트 기하정보
+
+function trendChartSVG(site) {
+  const planCum = [], actualCum = [], targetCum = [];
+  let ps = 0, as = 0, ts = 0;
+  for (let i = 0; i < 12; i++) {
+    ps += site.planMonths[i]; as += site.actualMonths[i]; ts += site.targetMonths[i];
+    planCum.push(ps); actualCum.push(as); targetCum.push(ts);
+  }
+  const actualSolid = actualCum.slice(0, REVIEW_IDX + 1);
+  const actualForecast = actualCum.slice(REVIEW_IDX);
+
+  const w = 600, h = 210, padL = 52, padT = 18, padB = 26, padR = 16;
+  const plotW = w - padL - padR, plotH = h - padT - padB;
+  const n = MONTHS.length;
+  const x = (i) => padL + (i * plotW) / (n - 1);
+  const maxVal = Math.max(...planCum, ...actualCum, ...targetCum, 1);
+  const domainMax = maxVal * 1.15;
+  const y = (v) => padT + plotH - (Math.min(v, domainMax) / domainMax) * plotH;
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((r) => domainMax * r);
+
+  const planPts = planCum.map((v, i) => `${x(i)},${y(v)}`).join(" ");
+  const actualSolidPts = actualSolid.map((v, i) => `${x(i)},${y(v)}`).join(" ");
+  const actualForecastPts = actualForecast.map((v, i) => `${x(i + REVIEW_IDX)},${y(v)}`).join(" ");
+  const targetPts = targetCum.map((v, i) => `${x(i)},${y(v)}`).join(" ");
+  const nowX = x(REVIEW_IDX);
+  const lastIdx = n - 1;
+
+  let gridSvg = ticks.map(g => `<g><line x1="${padL}" x2="${w - padR}" y1="${y(g)}" y2="${y(g)}" class="trend-grid"/><text x="${padL - 8}" y="${y(g) + 3}" class="trend-axis-label" text-anchor="end">${fmtEok(g, 0)}</text></g>`).join("");
+  let monthSvg = MONTHS.map((m, i) => `<text x="${x(i)}" y="${h - 6}" class="trend-axis-label" text-anchor="middle">${m}</text>`).join("");
+
+  // 12월 끝점 라벨: 계획 → 실적추정 → 추진목표 고정 순서, 겹치지 않도록 최소 간격만 확보
+  let endItems = [
+    { label: "계획", value: planCum[lastIdx], y: y(planCum[lastIdx]), cls: "trend-end-plan" },
+    { label: "실적추정", value: actualCum[lastIdx], y: y(actualCum[lastIdx]), cls: "trend-end-actual-forecast" },
+    { label: "추진목표", value: targetCum[lastIdx], y: y(targetCum[lastIdx]), cls: "trend-end-target" },
+  ];
+  const minGap = 13;
+  for (let i = 1; i < endItems.length; i++) {
+    if (endItems[i].y - endItems[i - 1].y < minGap) endItems[i].y = endItems[i - 1].y + minGap;
+  }
+  const endLabelsSvg = endItems.map((it) =>
+    `<text x="${x(lastIdx) - 8}" y="${it.y + 3}" class="trend-end-label ${it.cls}" text-anchor="end">${it.label} ${fmtEok(it.value, 1)}</text>`
+  ).join("");
+
+  trendGeom = { w, h, padL, padR, plotW, plotH, padT, n, planCum, actualCum, targetCum };
+
+  const svg = `<svg viewBox="0 0 ${w} ${h}" class="trend-svg">
+    ${gridSvg}${monthSvg}
+    <line x1="${nowX}" x2="${nowX}" y1="${padT}" y2="${padT + plotH}" class="trend-now-line"/>
+    <text x="${nowX}" y="${padT - 6}" class="trend-now-label" text-anchor="middle">현재(${REVIEW_MONTH})</text>
+    <polyline points="${targetPts}" class="trend-line trend-line-target"/>
+    <polyline points="${planPts}" class="trend-line trend-line-plan"/>
+    <polyline points="${actualForecastPts}" class="trend-line trend-line-actual-forecast"/>
+    <polyline points="${actualSolidPts}" class="trend-line trend-line-actual"/>
+    ${endLabelsSvg}
+  </svg>`;
+
+  return `<div class="trend-chart-wrap">
+    ${svg}
+    <div class="trend-hover-line" id="trend-hover-line"></div>
+    <div class="trend-tooltip" id="trend-tooltip"></div>
+  </div>`;
+}
+
+// ── 사업본부별 상태 ──────────────────────────────────────────
+const divisions = {
+  construction: { label: "건축", sites: DEFAULT_SITES_CONSTRUCTION, total: DEFAULT_TOTAL_CONSTRUCTION, overrides: {}, stage: "ongoing", listOpen: false, uploadOpen: false, view: "list", selectedId: null },
+  infra: { label: "인프라", sites: [], total: null, overrides: {}, stage: "ongoing", listOpen: false, uploadOpen: true, view: "list", selectedId: null },
+};
+const state = { activeDivision: "construction" };
+const uploadPicked = { construction: {}, infra: {} }; // File 객체 임시 보관
+
+function currentDiv() { return divisions[state.activeDivision]; }
+function effectiveStage(div, s) { return div.overrides[s.id] || classifyStage(s); }
+function getSorted(div) { return [...div.sites].sort((a, b) => siteStats(b).gapPct - siteStats(a).gapPct); }
+function getSummary(div) {
+  const n = div.sites.length;
+  const severe = div.sites.filter((x) => siteStats(x).gapPct > 10).length;
+  const caution = div.sites.filter((x) => { const g = siteStats(x).gapPct; return g > 0 && g <= 10; }).length;
+  const normal = n - severe - caution;
+  return { severe, caution, normal, n };
+}
+
+function divisionBarHTML() {
+  return `<div class="division-bar">
+    ${Object.keys(divisions).map((key) => {
+      const d = divisions[key];
+      return `<button class="division-tab ${state.activeDivision === key ? "active" : ""}" data-division="${key}">
+        ${d.label} <span class="div-count">${d.sites.length}개 현장</span>
+      </button>`;
+    }).join("")}
+  </div>`;
+}
+
+function uploadPanelHTML(divKey) {
+  const picked = uploadPicked[divKey] || {};
+  const field = (kind, label) => `
+    <div class="upload-field">
+      <label>${label} 파일</label>
+      <input type="file" accept=".xls,.xlsx" data-division="${divKey}" data-kind="${kind}" />
+      ${picked[kind] ? `<span class="file-picked">✓ ${picked[kind].name}</span>` : ""}
+    </div>`;
+  const ready = picked.plan && picked.actual && picked.target;
+  return `<div class="panel upload-panel">
+    <div class="upload-grid">
+      ${field("plan", "계획")}
+      ${field("actual", "실적추정")}
+      ${field("target", "추진목표")}
+    </div>
+    <div class="upload-actions">
+      <button class="upload-apply-btn" data-division="${divKey}" ${ready ? "" : "disabled"}>데이터 적용</button>
+      <span class="upload-status" id="upload-status-${divKey}"></span>
+    </div>
+  </div>`;
+}
+
+function uploadSectionHTML(div, divKey) {
+  return `
+    <button class="collapse-toggle ${div.uploadOpen ? "open" : ""}" id="upload-collapse-toggle">
+      <span>데이터 업로드</span>
+      <span class="chev">›</span>
+    </button>
+    ${div.uploadOpen ? `<div class="collapse-body">${uploadPanelHTML(divKey)}</div>` : ""}
+  `;
+}
+
+function listSectionHTML(div) {
+  const sorted = getSorted(div);
+  const summary = getSummary(div);
+  const ongoingCount = sorted.filter((s) => effectiveStage(div, s) === "ongoing").length;
+  const newCount = sorted.length - ongoingCount;
+  const filtered = sorted.filter((s) => effectiveStage(div, s) === div.stage);
+
+  const rows = filtered.length === 0
+    ? `<div class="empty-note">해당 구분의 현장이 없습니다.</div>`
+    : filtered.map((s, i) => {
+        const st = siteStats(s);
+        const status = classify(st.gapPct);
+        const target = div.stage === "ongoing" ? "new" : "ongoing";
+        const targetLabel = div.stage === "ongoing" ? "신규현장으로" : "진행현장으로";
+        const gapText = st.gapPct > 0 ? `-${st.gapPct}%p` : `+${Math.abs(st.gapPct)}%p`;
+        return `<div class="site-row status-${status.key}" data-id="${s.id}">
+          <span class="rank">${String(i + 1).padStart(2, "0")}</span>
+          <span class="site-name-block"><span class="site-name">${s.name}</span><span class="site-cat">${s.period}</span></span>
+          ${miniBarHTML(s)}
+          <span class="gap-badge badge-${status.key}">${gapText}<em>${status.label}</em></span>
+          <button class="move-btn" data-id="${s.id}" data-target="${target}" title="${targetLabel} 이동">${targetLabel} ›</button>
+        </div>`;
+      }).join("");
+
+  return `
+    <button class="collapse-toggle ${div.listOpen ? "open" : ""}" id="list-collapse-toggle">
+      <span>현장별 상세</span>
+      <span class="chev">›</span>
+    </button>
+    ${div.listOpen ? `
+    <section class="list-section collapse-body">
+      <div class="list-eyebrow">현장별 준수율 &nbsp;·&nbsp; 미달 폭 큰 순</div>
+      <div class="sector-tabs">
+        <button class="sector-tab ${div.stage === "ongoing" ? "active" : ""}" data-stage="ongoing">진행현장 <span class="tab-count">${ongoingCount}</span></button>
+        <button class="sector-tab ${div.stage === "new" ? "active" : ""}" data-stage="new">신규현장 <span class="tab-count">${newCount}</span></button>
+      </div>
+      <div class="list-head-row">
+        <span></span><span>현장명</span><span class="col-mini">계획 / 실적추정 / 추진목표</span><span class="col-gap">미달</span><span></span>
+      </div>
+      <div class="site-list">${rows}</div>
+    </section>` : ""}
+  `;
+}
+
+function listPageHTML(div) {
+  const summary = getSummary(div);
+  const alertStatus = totalStatsOf(computeTotal(div.sites)).status;
+
+  return `
+    <header class="cover">
+      <div class="panel-eyebrow">${div.label}사업본부 · 공정 관리 집계표</div>
+      <h1 class="cover-title">공정 진행 준수율 대시보드</h1>
+      <p class="cover-sub">계획 대비 실적추정 기준, 미달 폭이 큰 현장부터 정렬했습니다. (2026년 실제 데이터, ${REVIEW_MONTH} 조회 기준)</p>
+
+      ${uploadSectionHTML(div, state.activeDivision)}
+
+      ${totalAmountPanelHTML(div)}
+
+      <div class="section-title">경보 발령 단계 현황</div>
+      <div class="stat-row">
+        <div class="stat-card accent-severe"><div class="stat-num">${summary.severe}</div><div class="stat-label">경보 (달성률 90% 미만)</div></div>
+        <div class="stat-card accent-caution"><div class="stat-num">${summary.caution}</div><div class="stat-label">주의 (달성률 90~100% 미만)</div></div>
+        <div class="stat-card accent-normal"><div class="stat-num">${summary.normal}</div><div class="stat-label">정상 (달성률 100% 이상)</div></div>
+      </div>
+
+      <div class="dist-bar">
+        <div class="dist-seg seg-severe" style="width:${(summary.severe / summary.n) * 100}%"></div>
+        <div class="dist-seg seg-caution" style="width:${(summary.caution / summary.n) * 100}%"></div>
+        <div class="dist-seg seg-normal" style="width:${(summary.normal / summary.n) * 100}%"></div>
+      </div>
+
+      <div class="panel action-plan-panel ap-${alertStatus.key}">
+        <div class="ap-header">
+          <span class="ap-badge ap-badge-${alertStatus.key}">현재 단계 · ${alertStatus.label}</span>
+          <span class="ap-title">Action Plan</span>
+        </div>
+        ${coverActionPlanBodyHTML(state.activeDivision, div, alertStatus.key)}
+      </div>
+    </header>
+
+    ${listSectionHTML(div)}
+  `;
+}
+
+function emptyDivisionHTML(div) {
+  return `
+    <header class="cover">
+      <div class="panel-eyebrow">${div.label}사업본부 · 공정 관리 집계표</div>
+      <h1 class="cover-title">공정 진행 준수율 대시보드</h1>
+      <p class="cover-sub">아직 업로드된 데이터가 없습니다. 계획/실적추정/추진목표 엑셀 3개를 올려주세요.</p>
+      ${uploadSectionHTML(div, state.activeDivision)}
+      <div class="empty-division">데이터를 업로드하면 이 자리에 총괄 현황과 현장별 상세가 표시됩니다.</div>
+    </header>
+  `;
+}
+
+function detailPageHTML(div, site) {
+  const st = siteStats(site);
+  const status = classify(st.gapPct);
+  const achieveRate = st.targetToDate > 0 ? Math.round((st.actualToDate / st.targetToDate) * 100) : 0;
+  const maxScale = Math.max(120, Math.ceil(Math.max(100, st.actualForecastRel, st.targetForecastRel) / 20) * 20);
+  const gapText = st.gapPct > 0 ? `계획 대비 -${st.gapPct}%p` : `계획 대비 +${Math.abs(st.gapPct)}%p`;
+  const gapBadgeText = st.gapPct > 0 ? `-${st.gapPct}%p` : `+${Math.abs(st.gapPct)}%p`;
+  // 현재월/12월 기준 계획 대비 달성률
+  const achieveNowActual = st.planToDate > 0 ? Math.round((st.actualToDate / st.planToDate) * 100) : 0;
+  const achieveNowTarget = st.planToDate > 0 ? Math.round((st.targetToDate / st.planToDate) * 100) : 0;
+  const achieveDecActual = st.actualForecastRel;
+  const achieveDecTarget = st.targetForecastRel;
+
+  let bars = fullBarHTML({ label: "계획", value: 100, display: "100%", variant: "plan", maxScale, reviewLinePct: st.reviewLinePct, showReviewLabel: true });
+  bars += fullBarHTML({ label: "실적추정", value: st.actualRel, forecastValue: st.actualForecastRel, display: `${st.actualForecastRel}%`, achieveToDate: st.actualAchieveToDate, variant: status.key, maxScale, reviewLinePct: st.reviewLinePct });
+  bars += fullBarHTML({ label: "추진목표", value: st.targetRel, forecastValue: st.targetForecastRel, display: `${st.targetForecastRel}%`, achieveToDate: st.targetAchieveToDate, variant: "target", maxScale, reviewLinePct: st.reviewLinePct });
+
+  return `
+    <button class="back-btn">‹ 현장 목록으로</button>
+    <header class="detail-header">
+      <div class="panel-eyebrow">${div.label} · 현장 상세</div>
+      <h1 class="detail-title">${site.name}</h1>
+      <div class="detail-meta">
+        <span class="tag">${site.period}</span>
+        <span class="gap-badge badge-${status.key}">${gapText}<em>${status.label}</em></span>
+      </div>
+    </header>
+
+    <section class="panel bars-panel">
+      <div class="panel-eyebrow">계획(1~12월 연간, ${fmtEok(site.planAnnual, 1)}) 100% 기준 상대 진도율</div>
+      ${bars}
+      ${rulerHTML(maxScale)}
+      <div class="panel-note">진한 막대는 1~${REVIEW_MONTH} 실적 누계, 옅은 사선 막대는 해당 파일에 실제 입력된 9~12월 추정치를 더한 12월 예상치입니다. 세로선은 1~${REVIEW_MONTH} 계획 누계 위치(${st.reviewLinePct}%)를 나타냅니다.</div>
+    </section>
+
+    <section class="panel trend-panel">
+      <div class="panel-eyebrow">당해년도 계획·실적추정·추진목표 누계 추이 (1~12월)</div>
+      ${trendChartSVG(site)}
+      <div class="legend-row">
+        <span class="legend-item"><i class="dot dot-plan"></i>계획</span>
+        <span class="legend-item"><i class="dot dot-actual"></i>실적추정 (${REVIEW_MONTH}까지 실측)</span>
+        <span class="legend-item"><i class="dot dot-forecast"></i>실적추정 (${REVIEW_MONTH}~12월, 파일 입력 추정치)</span>
+        <span class="legend-item"><i class="dot dot-target"></i>추진목표</span>
+      </div>
+      <div class="achieve-summary">
+        <div class="achieve-card">
+          <div class="achieve-card-title">현재월(${REVIEW_MONTH}) 기준 계획 대비 달성률</div>
+          <div class="achieve-row"><span>실적추정</span><span class="val">${achieveNowActual}%</span></div>
+          <div class="achieve-row"><span>추진목표</span><span class="val">${achieveNowTarget}%</span></div>
+        </div>
+        <div class="achieve-card">
+          <div class="achieve-card-title">12월 기준 계획 대비 달성률</div>
+          <div class="achieve-row"><span>실적추정</span><span class="val">${achieveDecActual}%</span></div>
+          <div class="achieve-row"><span>추진목표</span><span class="val">${achieveDecTarget}%</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="insight-panel">
+      <div class="panel insight-card"><div class="insight-num">${fmtEok(st.actualToDate, 1)}</div><div class="insight-label">현재까지 실적추정 누계</div></div>
+      <div class="panel insight-card"><div class="insight-num">${achieveRate}%</div><div class="insight-label">추진목표 대비 달성률</div></div>
+      <div class="panel insight-card"><div class="insight-num">${gapBadgeText}</div><div class="insight-label">계획 대비 진도 편차</div></div>
+    </section>
+
+    ${siteActionPlanHTML(status, state.activeDivision, site.id)}
+  `;
+}
+
+function monthSelectorHTML() {
+  const options = MONTHS.map((m, i) => `<option value="${i}" ${i === REVIEW_IDX ? "selected" : ""}>${m}</option>`).join("");
+  return `<div class="review-month-bar">
+    <span class="review-month-label">조회월</span>
+    <select class="review-month-select" id="review-month-select">${options}</select>
+    <span class="review-month-hint">선택한 월까지의 실적 누계를 기준으로 계산합니다.</span>
+  </div>`;
+}
+
+function render() {
+  const app = document.getElementById("app");
+  const div = currentDiv();
+  let body;
+  if (div.view === "detail" && div.selectedId) {
+    const site = div.sites.find((s) => s.id === div.selectedId);
+    body = site ? detailPageHTML(div, site) : listPageHTML(div);
+  } else if (div.view === "delay") {
+    body = delayListPageHTML(div);
+  } else if (div.view === "countermeasure") {
+    body = countermeasurePageHTML(div);
+  } else if (div.sites.length === 0) {
+    body = emptyDivisionHTML(div);
+  } else {
+    body = listPageHTML(div);
+  }
+  app.innerHTML = divisionBarHTML() + monthSelectorHTML() + body;
+}
+
+// ── 저장/불러오기 ────────────────────────────────────────────
+async function persistDivision(key) {
+  try {
+    if (window.storage) {
+      const d = divisions[key];
+      await window.storage.set(`division-${key}`, JSON.stringify({ sites: d.sites, total: d.total, overrides: d.overrides }));
+    }
+  } catch (e) { /* 저장 실패해도 화면 동작에는 지장 없음 */ }
+}
+async function loadAll() {
+  try {
+    if (window.storage) {
+      for (const key of Object.keys(divisions)) {
+        const res = await window.storage.get(`division-${key}`);
+        if (res && res.value) {
+          const saved = JSON.parse(res.value);
+          if (saved.sites && saved.sites.length) divisions[key].sites = saved.sites;
+          if (saved.total) divisions[key].total = saved.total;
+          if (saved.overrides) divisions[key].overrides = saved.overrides;
+        }
+        const cpRes = await window.storage.get(`cp-data-${key}`);
+        if (cpRes && cpRes.value) cpStore[key] = JSON.parse(cpRes.value);
+        const cmRes = await window.storage.get(`countermeasure-${key}`);
+        if (cmRes && cmRes.value) countermeasureNotes[key] = JSON.parse(cmRes.value);
+      }
+    }
+  } catch (e) { /* 저장된 값 없음 - 기본값 사용 */ }
+  render();
+}
+
+// ── 이벤트 처리 ──────────────────────────────────────────────
+document.getElementById("app").addEventListener("click", function (e) {
+  const divTab = e.target.closest(".division-tab");
+  if (divTab) { state.activeDivision = divTab.dataset.division; render(); return; }
+
+  const moveBtn = e.target.closest(".move-btn");
+  if (moveBtn) {
+    e.stopPropagation();
+    currentDiv().overrides[moveBtn.dataset.id] = moveBtn.dataset.target;
+    persistDivision(state.activeDivision);
+    render();
+    return;
+  }
+  const collapseToggle = e.target.closest("#list-collapse-toggle");
+  if (collapseToggle) { currentDiv().listOpen = !currentDiv().listOpen; render(); return; }
+
+  const uploadToggle = e.target.closest("#upload-collapse-toggle");
+  if (uploadToggle) { currentDiv().uploadOpen = !currentDiv().uploadOpen; render(); return; }
+
+  const cpToggleCell = e.target.closest(".cp-toggle-cell");
+  if (cpToggleCell) {
+    const cps = ensureCPData(cpToggleCell.dataset.division, cpToggleCell.dataset.site);
+    const cp = cps.find((c) => c.id === cpToggleCell.dataset.cp);
+    if (cp) {
+      const group = cp[cpToggleCell.dataset.team];
+      const arr = group && group[cpToggleCell.dataset.item];
+      if (arr) {
+        const w = Number(cpToggleCell.dataset.week);
+        const wasOn = arr[w];
+        arr.fill(false); // 항목당 체크는 한 개만 허용 - 같은 행의 기존 선택은 해제
+        if (!wasOn) arr[w] = true;
+      }
+    }
+    persistCPData(cpToggleCell.dataset.division);
+    render(); // 같은 행의 다른 칸도 갱신되어야 하므로 재렌더링
+    return;
+  }
+  const cpDelBtn = e.target.closest(".cp-del-btn");
+  if (cpDelBtn) {
+    const siteId = currentDiv().selectedId;
+    const cps = ensureCPData(state.activeDivision, siteId);
+    const idx = cps.findIndex((c) => c.id === cpDelBtn.dataset.cp);
+    if (idx >= 0) cps.splice(idx, 1);
+    persistCPData(state.activeDivision);
+    render();
+    return;
+  }
+  const cpAddBtn = e.target.closest(".cp-add-btn");
+  if (cpAddBtn) {
+    const cps = ensureCPData(cpAddBtn.dataset.division, cpAddBtn.dataset.site);
+    cps.push(makeCP("신규 공종"));
+    persistCPData(cpAddBtn.dataset.division);
+    render();
+    return;
+  }
+
+  const stageTab = e.target.closest(".sector-tab");
+  if (stageTab) { currentDiv().stage = stageTab.dataset.stage; render(); return; }
+
+  const row = e.target.closest(".site-row");
+  if (row) { currentDiv().selectedId = row.dataset.id; currentDiv().view = "detail"; render(); return; }
+
+  const delaySummaryBtn = e.target.closest("#cp-delay-summary-btn");
+  if (delaySummaryBtn) { currentDiv().view = "delay"; render(); return; }
+
+  const delayRow = e.target.closest(".delay-row");
+  if (delayRow) { currentDiv().selectedId = delayRow.dataset.site; currentDiv().view = "detail"; render(); return; }
+
+  const countermeasureBtn = e.target.closest("#countermeasure-btn");
+  if (countermeasureBtn) { currentDiv().view = "countermeasure"; render(); return; }
+
+  const back = e.target.closest(".back-btn");
+  if (back) { currentDiv().view = "list"; render(); return; }
+
+  const applyBtn = e.target.closest(".upload-apply-btn");
+  if (applyBtn) {
+    const key = applyBtn.dataset.division;
+    const picked = uploadPicked[key];
+    const statusEl = document.getElementById(`upload-status-${key}`);
+    if (!picked.plan || !picked.actual || !picked.target) return;
+    applyBtn.disabled = true;
+    statusEl.textContent = "엑셀 파일을 읽는 중...";
+    statusEl.className = "upload-status";
+    extractSitesFromFiles(picked.plan, picked.actual, picked.target)
+      .then((result) => {
+        divisions[key].sites = result.sites;
+        divisions[key].total = result.total;
+        divisions[key].overrides = {};
+        divisions[key].view = "list";
+        divisions[key].selectedId = null;
+        divisions[key].uploadOpen = false;
+        persistDivision(key);
+        statusEl.textContent = `${result.sites.length}개 현장 데이터를 적용했습니다.`;
+        statusEl.className = "upload-status ok";
+        render();
+      })
+      .catch((err) => {
+        statusEl.textContent = err.message || "파일을 읽는 중 오류가 발생했습니다.";
+        statusEl.className = "upload-status error";
+        applyBtn.disabled = false;
+      });
+    return;
+  }
+});
+
+document.getElementById("app").addEventListener("change", function (e) {
+  const monthSelect = e.target.closest("#review-month-select");
+  if (monthSelect) {
+    setReviewMonth(Number(monthSelect.value));
+    render();
+    return;
+  }
+  const cpNameInput = e.target.closest(".cp-name-input");
+  if (cpNameInput) {
+    const cps = ensureCPData(state.activeDivision, currentDiv().selectedId);
+    const cp = cps.find((c) => c.id === cpNameInput.dataset.cp);
+    if (cp) cp.name = cpNameInput.value.trim() || cp.name;
+    persistCPData(state.activeDivision);
+    return; // 입력값은 이미 표시되어 있으므로 재렌더 불필요
+  }
+  const cmTextarea = e.target.closest(".cm-textarea");
+  if (cmTextarea) {
+    const notes = ensureCountermeasure(cmTextarea.dataset.division);
+    notes[cmTextarea.dataset.team] = cmTextarea.value;
+    persistCountermeasure(cmTextarea.dataset.division);
+    return; // 입력값은 이미 표시되어 있으므로 재렌더 불필요
+  }
+  const input = e.target.closest('input[type="file"]');
+  if (!input) return;
+  const key = input.dataset.division;
+  const kind = input.dataset.kind;
+  const file = input.files && input.files[0];
+  if (!file) return;
+  uploadPicked[key][kind] = file;
+  render();
+});
+
+document.addEventListener("mousemove", function (e) {
+  const wrap = e.target.closest(".trend-chart-wrap");
+  const tooltip = document.getElementById("trend-tooltip");
+  const hoverLine = document.getElementById("trend-hover-line");
+  if (!wrap || !trendGeom || !tooltip || !hoverLine) {
+    if (tooltip) tooltip.style.display = "none";
+    if (hoverLine) hoverLine.style.display = "none";
+    return;
+  }
+  const svg = wrap.querySelector("svg");
+  const rect = svg.getBoundingClientRect();
+  const fracX = (e.clientX - rect.left) / rect.width;
+  const svgX = fracX * trendGeom.w;
+  const step = trendGeom.plotW / (trendGeom.n - 1);
+  let i = Math.round((svgX - trendGeom.padL) / step);
+  i = Math.max(0, Math.min(trendGeom.n - 1, i));
+  const leftPct = ((trendGeom.padL + i * step) / trendGeom.w) * 100;
+  const tooltipLeftPct = Math.min(85, Math.max(15, leftPct));
+
+  hoverLine.style.display = "block";
+  hoverLine.style.left = `${leftPct}%`;
+
+  tooltip.style.display = "block";
+  tooltip.style.left = `${tooltipLeftPct}%`;
+  tooltip.innerHTML = `
+    <div class="tt-month">${MONTHS[i]} 누계</div>
+    <div class="tt-row"><span class="tt-dot" style="background:var(--blue)"></span>계획<b>${fmtEok(trendGeom.planCum[i], 1)}</b></div>
+    <div class="tt-row"><span class="tt-dot" style="background:var(--teal)"></span>실적추정<b>${fmtEok(trendGeom.actualCum[i], 1)}</b></div>
+    <div class="tt-row"><span class="tt-dot" style="background:var(--amber)"></span>추진목표<b>${fmtEok(trendGeom.targetCum[i], 1)}</b></div>
+  `;
+});
+
+loadAll();
+</script>
+</body>
+</html>
+
