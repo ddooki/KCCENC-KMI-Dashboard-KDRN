@@ -318,8 +318,10 @@
   <div class="dv" id="stage-2"><iframe class="dash" id="iframe-수주" title="수주"></iframe></div>
   <!-- 공정: 범용 렌더 -->
   <div class="dv" id="stage-3"><div id="mount-2"></div></div>
+  <!-- 이익/자금/규칙엔진 -->
   <div class="dv" id="stage-4"><div id="mount-4"></div></div>
   <div class="dv" id="stage-5"><div id="mount-3"></div></div>
+  <div class="dv" id="stage-6"><iframe class="dash" id="iframe-v2" title="규칙 엔진" src="선행지표_대시보드_v2.html" style="height:calc(100vh - 118px);"></iframe></div>
 </div>
 
 <script>
@@ -1096,6 +1098,7 @@ const IIK = {
     {no:"02", name:"공정", dot:worstDot(typeof GONGJEONG!=='undefined'?GONGJEONG:null)},
     {no:"03", name:"이익", dot:worstDot(typeof IIK!=='undefined'?IIK:null)},
     {no:"04", name:"자금", dot:worstDot(typeof JAGEUM!=='undefined'?JAGEUM:null)},
+    {no:"05", name:"규칙 엔진", dot:"warn"}, /* v2 규칙 엔진 */
   ];
   /* ══ 종합 상황판 데이터·렌더 ══ */
   const SIT={
