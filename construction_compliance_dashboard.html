@@ -250,6 +250,24 @@
   .sector-tab.active .tab-count { background: var(--blue); color: #0a1420; }
   .empty-note { font-size: 13px; color: var(--muted); padding: 20px; text-align: center; }
 
+  .guide-tag { font-family: 'IBM Plex Mono', monospace; font-size: 8px; color: var(--blue); margin-left: 3px; font-weight: 700; }
+  .cp-guide-cell { box-shadow: inset 0 0 0 1px var(--blue); background: rgba(111,179,232,0.08) !important; }
+  .ap-col-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+  .cp-stat-summary { font-size: 11.5px; color: var(--text); background: rgba(111,179,232,0.12); border: 1px solid rgba(111,179,232,0.3); padding: 3px 10px; border-radius: 4px; font-family: 'IBM Plex Mono', monospace; }
+  .cp-stat-summary strong { color: var(--teal); font-size: 13px; }
+  .cp-filter-bar { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; background: #313d38; padding: 8px 12px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.08); }
+  .cp-filter-group { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .cp-filter-select { background: #242e2b; color: var(--text); border: 1px solid rgba(255,255,255,0.15); border-radius: 3px; padding: 4px 8px; font-size: 11.5px; }
+  .cp-header-main { display: flex; align-items: center; gap: 8px; flex: 1; flex-wrap: wrap; }
+  .cp-header-sub { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .cp-meta-select { background: #242e2b; color: var(--text); border: 1px solid rgba(255,255,255,0.15); border-radius: 3px; padding: 3px 6px; font-size: 11px; }
+  .cp-cls-badge { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700; color: var(--amber); background: rgba(255,173,66,0.12); border: 1px solid rgba(255,173,66,0.3); padding: 2px 6px; border-radius: 3px; }
+  .cp-target-label { font-size: 11px; color: var(--blue); font-weight: 600; }
+  .cp-history-box { font-size: 10.5px; color: var(--muted); background: #242e2b; border-bottom: 1px solid rgba(255,255,255,0.08); padding: 5px 12px; overflow-x: auto; white-space: nowrap; }
+  .cp-hist-title { font-weight: 700; color: var(--blue); }
+  .hist-item { color: var(--rust); }
+
+
   .list-eyebrow {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 12px; color: var(--muted); letter-spacing: 0.08em;
@@ -610,44 +628,130 @@ function achvStatusOf(pct) {
   if (pct >= 90) return "warn";
   return "bad";
 }
-// 현장 상세 페이지 "발주" 칸: 주요 공종(CP) 선정 진행 현황 (전 현장 공통, 월별 4주 단위)
-const DEFAULT_CP_NAMES = ["철거", "토공및흙막이", "철골", "철근콘크리트", "전기", "통신", "일반배관", "타워크레인", "AL창호", "유리", "엘리베이터", "내장", "조경"];
-const cpStore = {}; // cpStore[divKey][siteId] = [ {id, name, construction:{order:[48], vendor:[48]}, procurement:{survey:[48], bid:[48], contract:[48]}} ]
+// 현장 상세 페이지 "발주" 칸: 주요 공종(CP) 마일스톤 및 리드타임 관리 (KCC ERP 예산 연동)
+const ERP_CATEGORIES = [
+  { code: "E01", name: "01. 공통가설공사", cls: "제작 없음", leadWeeks: { order: 12, survey: 10, bid: 8, contract: 6 } },
+  { code: "E02A", name: "02. 건축공사 (토공·골조)", cls: "제작 없음", leadWeeks: { order: 16, survey: 12, bid: 10, contract: 8 } },
+  { code: "E02B", name: "02. 건축공사 (창호·석공사·외장)", cls: "제작 있음", leadWeeks: { order: 24, survey: 20, bid: 16, contract: 12 } },
+  { code: "E02C", name: "02. 건축공사 (내장·도장·마루)", cls: "마감", leadWeeks: { order: 12, survey: 10, bid: 8, contract: 6 } },
+  { code: "E03", name: "03. 토목공사", cls: "제작 없음", leadWeeks: { order: 12, survey: 10, bid: 8, contract: 6 } },
+  { code: "E04", name: "04. 설비/승강기공사", cls: "장납기", leadWeeks: { order: 36, survey: 30, bid: 24, contract: 18 } },
+  { code: "E05", name: "05. 조경공사", cls: "마감", leadWeeks: { order: 12, survey: 10, bid: 8, contract: 6 } },
+  { code: "E06", name: "06. 전기/통신공사", cls: "장납기", leadWeeks: { order: 28, survey: 22, bid: 18, contract: 14 } },
+];
+
+const BUILDING_GROUPS = ["공통", "101동", "102동", "부대시설"];
+
+const DEFAULT_CP_ITEMS = [
+  { name: "공통가설공사", erp: "E01", bld: "공통", startW: 16 },
+  { name: "토공 및 흙막이", erp: "E02A", bld: "공통", startW: 20 },
+  { name: "골조공사 (지하/지상)", erp: "E02A", bld: "101동", startW: 24 },
+  { name: "AL창호 및 커튼월", erp: "E02B", bld: "101동", startW: 32 },
+  { name: "석공사 (외벽/내부)", erp: "E02B", bld: "101동", startW: 36 },
+  { name: "엘리베이터 승강기", erp: "E04", bld: "101동", startW: 40 },
+  { name: "설비공사 (위생/배관)", erp: "E04", bld: "101동", startW: 28 },
+  { name: "전기 및 통신공사", erp: "E06", bld: "공통", startW: 28 },
+  { name: "내장 목공사 및 도배", erp: "E02C", bld: "101동", startW: 42 },
+  { name: "조경 및 부대토목", erp: "E05", bld: "부대시설", startW: 44 },
+];
+
+const cpStore = {}; // cpStore[divKey][siteId] = [ ... ]
+const cpFilterStore = {}; // cpFilterStore[divKey][siteId] = { bld: 'all', erp: 'all' }
+
 function blank48() { return new Array(48).fill(false); }
-function makeCP(name) {
+
+function makeCP(itemData) {
+  const isObj = typeof itemData === "object";
+  const name = isObj ? itemData.name : itemData;
+  const erpCode = isObj ? (itemData.erp || "E02A") : "E02A";
+  const bld = isObj ? (itemData.bld || "공통") : "공통";
+  const startW = isObj ? (itemData.startW != null ? itemData.startW : 24) : 24;
+
   return {
     id: `cp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     name,
+    erpCode,
+    buildingGroup: bld,
+    targetStartWeek: startW,
     construction: { order: blank48(), vendor: blank48() },
     procurement: { survey: blank48(), bid: blank48(), contract: blank48() },
+    history: [], // [{ time, itemLabel, week, diffWeeks }]
   };
 }
+
+function getERPInfo(code) {
+  return ERP_CATEGORIES.find((c) => c.code === code) || ERP_CATEGORIES[1];
+}
+
+function calculateGuidelineWeek(cp, itemKey) {
+  const erpInfo = getERPInfo(cp.erpCode);
+  const offset = erpInfo.leadWeeks[itemKey] || 8;
+  const w = cp.targetStartWeek - offset;
+  return Math.max(0, Math.min(47, w));
+}
+
 function ensureCPData(divKey, siteId) {
   if (!cpStore[divKey]) cpStore[divKey] = {};
-  if (!cpStore[divKey][siteId]) cpStore[divKey][siteId] = DEFAULT_CP_NAMES.map((n) => makeCP(n));
+  if (!cpStore[divKey][siteId]) {
+    cpStore[divKey][siteId] = DEFAULT_CP_ITEMS.map((item) => makeCP(item));
+  }
   return cpStore[divKey][siteId];
 }
+
+function ensureCPFilter(divKey, siteId) {
+  if (!cpFilterStore[divKey]) cpFilterStore[divKey] = {};
+  if (!cpFilterStore[divKey][siteId]) {
+    cpFilterStore[divKey][siteId] = { bld: "all", erp: "all" };
+  }
+  return cpFilterStore[divKey][siteId];
+}
+
 async function persistCPData(divKey) {
   try {
     if (window.storage) await window.storage.set(`cp-data-${divKey}`, JSON.stringify(cpStore[divKey] || {}));
-  } catch (e) { /* 저장 실패해도 화면 동작에는 지장 없음 */ }
+  } catch (e) { }
 }
 
-// 업체선정(건축/인프라팀) → 계약(외주구매팀) 지연일 계산
 function lastCheckedWeek(arr) {
   for (let i = arr.length - 1; i >= 0; i--) if (arr[i]) return i;
   return -1;
 }
-function currentWeekIdx() { return REVIEW_IDX * 4 + 3; } // 조회월 마지막 주 기준
+
+function currentWeekIdx() { return REVIEW_IDX * 4 + 3; }
+
 function cpDelayInfo(cp) {
   const vendorWeek = lastCheckedWeek(cp.construction.vendor);
   const contractWeek = lastCheckedWeek(cp.procurement.contract);
   if (vendorWeek === -1 || contractWeek === -1) {
-    return { state: "missing", days: 0 }; // 건축/인프라팀·외주구매팀 중 체크가 하나도 없는 경우
+    return { state: "missing", days: 0 };
   }
   const days = contractWeek - vendorWeek > 0 ? (contractWeek - vendorWeek) * 7 : 0;
   return days > 0 ? { state: "bad", days } : { state: "ok", days: 0 };
 }
+
+function cpGuidelineCompliance(cp) {
+  const contractW = lastCheckedWeek(cp.procurement.contract);
+  const targetW = calculateGuidelineWeek(cp, "contract");
+  if (contractW === -1) return { isChecked: false, isCompliant: true, diff: 0 };
+  const diff = contractW - targetW;
+  return { isChecked: true, isCompliant: diff <= 0, diff };
+}
+
+function computeGuidelineComplianceStats(divKey, siteId) {
+  const cps = ensureCPData(divKey, siteId);
+  let checkedCount = 0, compliantCount = 0, deviatedCount = 0;
+  cps.forEach((cp) => {
+    const res = cpGuidelineCompliance(cp);
+    if (res.isChecked) {
+      checkedCount++;
+      if (res.isCompliant) compliantCount++;
+      else deviatedCount++;
+    }
+  });
+  const rate = checkedCount > 0 ? Math.round((compliantCount / checkedCount) * 100) : 100;
+  return { total: cps.length, checkedCount, compliantCount, deviatedCount, rate };
+}
+
 function countDelayedCPs(divKey, sites) {
   let count = 0;
   sites.forEach((s) => {
@@ -656,6 +760,7 @@ function countDelayedCPs(divKey, sites) {
   });
   return count;
 }
+
 function getDelayList(divKey, sites) {
   const rows = [];
   sites.forEach((s) => {
@@ -668,6 +773,7 @@ function getDelayList(divKey, sites) {
   rows.sort((a, b) => b.days - a.days);
   return rows;
 }
+
 function delayListPageHTML(div) {
   const rows = getDelayList(state.activeDivision, div.sites);
   const body = rows.length === 0
@@ -691,13 +797,16 @@ function delayListPageHTML(div) {
   `;
 }
 
-function cpCheckRowHTML(divKey, siteId, cpId, team, item, itemLabel, arr) {
+function cpCheckRowHTML(divKey, siteId, cp, team, item, itemLabel, arr) {
+  const guideW = calculateGuidelineWeek(cp, item);
   const cells = [];
   for (let w = 0; w < 48; w++) {
     const checked = !!arr[w];
-    cells.push(`<td class="cp-cell"><button type="button" class="cp-toggle-cell team-${team} ${checked ? "on" : ""}" data-division="${divKey}" data-site="${siteId}" data-cp="${cpId}" data-team="${team}" data-item="${item}" data-week="${w}"></button></td>`);
+    const isGuide = (w === guideW);
+    const guideClass = isGuide ? " cp-guide-cell" : "";
+    cells.push(`<td class="cp-cell${guideClass}"><button type="button" class="cp-toggle-cell team-${team} ${checked ? "on" : ""}" data-division="${divKey}" data-site="${siteId}" data-cp="${cp.id}" data-team="${team}" data-item="${item}" data-week="${w}" title="${isGuide ? itemLabel + ' 가이드 권장주차' : ''}"></button></td>`);
   }
-  return `<tr><td class="cp-item-label">${itemLabel}</td>${cells.join("")}</tr>`;
+  return `<tr><td class="cp-item-label">${itemLabel} <span class="guide-tag">W${guideW + 1}</span></td>${cells.join("")}</tr>`;
 }
 
 function cpCardHTML(divKey, siteId, cp) {
@@ -705,17 +814,51 @@ function cpCardHTML(divKey, siteId, cp) {
   const weekHeaderRow = MONTHS.map(() => `<th>1</th><th>2</th><th>3</th><th>4</th>`).join("");
   const colgroup = `<colgroup><col class="cp-col-label"/>${Array.from({ length: 48 }).map(() => `<col class="cp-col-week"/>`).join("")}</colgroup>`;
   const delay = cpDelayInfo(cp);
+  const comp = cpGuidelineCompliance(cp);
+
   const delayBadge = delay.state === "missing"
-    ? `<span class="cp-delay-badge cp-delay-missing">지연일 : 체크박스 입력 필요</span>`
+    ? `<span class="cp-delay-badge cp-delay-missing">지연일 : 체크 필요</span>`
     : delay.state === "ok"
       ? `<span class="cp-delay-badge cp-delay-ok">지연일 : OK</span>`
       : `<span class="cp-delay-badge cp-delay-bad">지연일 : ${delay.days}일</span>`;
-  return `<div class="cp-card">
+
+  const guideBadge = !comp.isChecked
+    ? `<span class="cp-delay-badge cp-delay-missing">가이드 : 미집계</span>`
+    : comp.isCompliant
+      ? `<span class="cp-delay-badge cp-delay-ok">가이드 준수</span>`
+      : `<span class="cp-delay-badge cp-delay-bad">가이드 이탈 (+${comp.diff}주차)</span>`;
+
+  const erpInfo = getERPInfo(cp.erpCode);
+  const erpOptions = ERP_CATEGORIES.map((c) => `<option value="${c.code}" ${c.code === cp.erpCode ? "selected" : ""}>${c.name}</option>`).join("");
+  const bldOptions = BUILDING_GROUPS.map((b) => `<option value="${b}" ${b === cp.buildingGroup ? "selected" : ""}>${b}</option>`).join("");
+
+  const startWeekOptions = Array.from({ length: 48 }).map((_, w) => {
+    const m = Math.floor(w / 4) + 1;
+    const wk = (w % 4) + 1;
+    return `<option value="${w}" ${w === cp.targetStartWeek ? "selected" : ""}>W${w + 1} (${m}월 ${wk}주차 착수)</option>`;
+  }).join("");
+
+  const historyLogs = cp.history && cp.history.length > 0
+    ? `<div class="cp-history-box"><span class="cp-hist-title">수동 조정 이력 (${cp.history.length}건):</span> ${cp.history.map(h => `<span class="hist-item">${h.time} ${h.itemLabel} ➔ W${h.week + 1} (${h.diffWeeks > 0 ? '+' + h.diffWeeks + '주' : h.diffWeeks + '주'})</span>`).join(" | ")}</div>`
+    : "";
+
+  return `<div class="cp-card" data-erp="${cp.erpCode}" data-bld="${cp.buildingGroup}">
     <div class="cp-card-header">
-      <input type="text" class="cp-name-input" data-cp="${cp.id}" value="${cp.name}" />
-      ${delayBadge}
-      <button class="cp-del-btn" data-cp="${cp.id}" title="공종 삭제">✕</button>
+      <div class="cp-header-main">
+        <input type="text" class="cp-name-input" data-cp="${cp.id}" value="${cp.name}" />
+        <select class="cp-meta-select cp-erp-select" data-cp="${cp.id}" data-site="${siteId}" data-field="erpCode" title="KCC ERP 공사예산 항목 연동">${erpOptions}</select>
+        <select class="cp-meta-select cp-bld-select" data-cp="${cp.id}" data-site="${siteId}" data-field="buildingGroup" title="동/건물 구분">${bldOptions}</select>
+      </div>
+      <div class="cp-header-sub">
+        <span class="cp-target-label">최초 착수/납품 시점:</span>
+        <select class="cp-meta-select cp-start-select" data-cp="${cp.id}" data-site="${siteId}" data-field="targetStartWeek">${startWeekOptions}</select>
+        <span class="cp-cls-badge">${erpInfo.cls}</span>
+        ${guideBadge}
+        ${delayBadge}
+        <button class="cp-del-btn" data-cp="${cp.id}" title="공종 삭제">✕</button>
+      </div>
     </div>
+    ${historyLogs}
     <div class="cp-table-scroll">
       <table class="cp-table">
         ${colgroup}
@@ -725,12 +868,12 @@ function cpCardHTML(divKey, siteId, cp) {
         </thead>
         <tbody>
           <tr class="cp-team-divider"><td colspan="49">건축/인프라팀</td></tr>
-          ${cpCheckRowHTML(divKey, siteId, cp.id, "construction", "order", "발주", cp.construction.order)}
-          ${cpCheckRowHTML(divKey, siteId, cp.id, "construction", "vendor", "업체선정", cp.construction.vendor)}
+          ${cpCheckRowHTML(divKey, siteId, cp, "construction", "order", "발주", cp.construction.order)}
+          ${cpCheckRowHTML(divKey, siteId, cp, "construction", "vendor", "업체선정", cp.construction.vendor)}
           <tr class="cp-team-divider"><td colspan="49">외주구매팀</td></tr>
-          ${cpCheckRowHTML(divKey, siteId, cp.id, "procurement", "survey", "현설", cp.procurement.survey)}
-          ${cpCheckRowHTML(divKey, siteId, cp.id, "procurement", "bid", "입찰", cp.procurement.bid)}
-          ${cpCheckRowHTML(divKey, siteId, cp.id, "procurement", "contract", "계약", cp.procurement.contract)}
+          ${cpCheckRowHTML(divKey, siteId, cp, "procurement", "survey", "현설", cp.procurement.survey)}
+          ${cpCheckRowHTML(divKey, siteId, cp, "procurement", "bid", "입찰", cp.procurement.bid)}
+          ${cpCheckRowHTML(divKey, siteId, cp, "procurement", "contract", "계약", cp.procurement.contract)}
         </tbody>
       </table>
     </div>
@@ -739,12 +882,43 @@ function cpCardHTML(divKey, siteId, cp) {
 
 function cpSectionHTML(divKey, siteId) {
   const cps = ensureCPData(divKey, siteId);
+  const filter = ensureCPFilter(divKey, siteId);
+  const stats = computeGuidelineComplianceStats(divKey, siteId);
+
+  const filtered = cps.filter((cp) => {
+    if (filter.bld !== "all" && cp.buildingGroup !== filter.bld) return false;
+    if (filter.erp !== "all" && cp.erpCode !== filter.erp) return false;
+    return true;
+  });
+
+  const bldFilterOptions = `<option value="all" ${filter.bld === "all" ? "selected" : ""}>전체 건물/동 보기</option>` +
+    BUILDING_GROUPS.map((b) => `<option value="${b}" ${b === filter.bld ? "selected" : ""}>${b}</option>`).join("");
+
+  const erpFilterOptions = `<option value="all" ${filter.erp === "all" ? "selected" : ""}>전체 ERP 공종 보기</option>` +
+    ERP_CATEGORIES.map((c) => `<option value="${c.code}" ${c.code === filter.erp ? "selected" : ""}>${c.name}</option>`).join("");
+
   return `<div class="cp-section">
-    <div class="ap-col-title">주요 공종(CP) 선정 진행 현황</div>
-    <div class="cp-list">${cps.map((cp) => cpCardHTML(divKey, siteId, cp)).join("")}</div>
+    <div class="ap-col-title-row">
+      <div class="ap-col-title">주요 공종(CP) 마일스톤 & 리드타임 관리 (KCC ERP 연동)</div>
+      <div class="cp-stat-summary">선행계약 가이드 준수율 <strong>${stats.rate}%</strong> (준수 ${stats.compliantCPs}건 / 이탈 ${stats.deviatedCPs}건)</div>
+    </div>
+
+    <div class="cp-filter-bar">
+      <div class="cp-filter-group">
+        <label>동/건물 필터:</label>
+        <select class="cp-filter-select" id="cp-filter-bld" data-division="${divKey}" data-site="${siteId}">${bldFilterOptions}</select>
+      </div>
+      <div class="cp-filter-group">
+        <label>KCC ERP 공종 필터:</label>
+        <select class="cp-filter-select" id="cp-filter-erp" data-division="${divKey}" data-site="${siteId}">${erpFilterOptions}</select>
+      </div>
+    </div>
+
+    <div class="cp-list">${filtered.length > 0 ? filtered.map((cp) => cpCardHTML(divKey, siteId, cp)).join("") : '<div class="empty-note">조건에 맞는 공종이 없습니다.</div>'}</div>
     <button class="cp-add-btn" data-division="${divKey}" data-site="${siteId}">+ 공종 추가</button>
   </div>`;
 }
+
 
 const ACTION_PLANS = {
   severe: ["긴급 공정회의 개최 및 만회대책 수립", "협력사 인력·장비 긴급 투입 요청", "본부장 보고 및 주간 진도 점검 강화"],
@@ -1400,7 +1574,18 @@ document.getElementById("app").addEventListener("click", function (e) {
         const w = Number(cpToggleCell.dataset.week);
         const wasOn = arr[w];
         arr.fill(false); // 항목당 체크는 한 개만 허용 - 같은 행의 기존 선택은 해제
-        if (!wasOn) arr[w] = true;
+        if (!wasOn) {
+          arr[w] = true;
+          const guideW = calculateGuidelineWeek(cp, cpToggleCell.dataset.item);
+          const diffWeeks = w - guideW;
+          if (diffWeeks !== 0) {
+            const nowStr = new Date().toISOString().slice(5, 10);
+            const itemLabels = { order: "발주", vendor: "업체선정", survey: "현설", bid: "입찰", contract: "계약" };
+            const label = itemLabels[cpToggleCell.dataset.item] || cpToggleCell.dataset.item;
+            if (!cp.history) cp.history = [];
+            cp.history.unshift({ time: nowStr, itemLabel: label, week: w, diffWeeks });
+          }
+        }
       }
     }
     persistCPData(cpToggleCell.dataset.division);
@@ -1420,7 +1605,7 @@ document.getElementById("app").addEventListener("click", function (e) {
   const cpAddBtn = e.target.closest(".cp-add-btn");
   if (cpAddBtn) {
     const cps = ensureCPData(cpAddBtn.dataset.division, cpAddBtn.dataset.site);
-    cps.push(makeCP("신규 공종"));
+    cps.push(makeCP({ name: "신규 공종", erp: "E02A", bld: "공통", startW: 24 }));
     persistCPData(cpAddBtn.dataset.division);
     render();
     return;
@@ -1480,6 +1665,34 @@ document.getElementById("app").addEventListener("change", function (e) {
   if (monthSelect) {
     setReviewMonth(Number(monthSelect.value));
     render();
+    return;
+  }
+  const filterBld = e.target.closest("#cp-filter-bld");
+  if (filterBld) {
+    const filter = ensureCPFilter(filterBld.dataset.division, filterBld.dataset.site);
+    filter.bld = filterBld.value;
+    render();
+    return;
+  }
+  const filterErp = e.target.closest("#cp-filter-erp");
+  if (filterErp) {
+    const filter = ensureCPFilter(filterErp.dataset.division, filterErp.dataset.site);
+    filter.erp = filterErp.value;
+    render();
+    return;
+  }
+  const metaSelect = e.target.closest(".cp-meta-select");
+  if (metaSelect) {
+    const cps = ensureCPData(state.activeDivision, metaSelect.dataset.site || currentDiv().selectedId);
+    const cp = cps.find((c) => c.id === metaSelect.dataset.cp);
+    if (cp) {
+      const field = metaSelect.dataset.field;
+      if (field === "targetStartWeek") cp.targetStartWeek = Number(metaSelect.value);
+      else if (field === "erpCode") cp.erpCode = metaSelect.value;
+      else if (field === "buildingGroup") cp.buildingGroup = metaSelect.value;
+      persistCPData(state.activeDivision);
+      render();
+    }
     return;
   }
   const cpNameInput = e.target.closest(".cp-name-input");
