@@ -281,6 +281,18 @@
   .cp-save-btn { background: #3182ce; color: #ffffff; border: none; padding: 5px 14px; border-radius: 4px; font-weight: 700; font-size: 12px; cursor: pointer; }
   .cp-save-btn:hover { background: #2b6cb0; }
 
+  /* Modal Overlay & Dialog */
+  .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+  .modal-dialog { background: #242e2b; border: 1px solid rgba(168,212,128,0.3); border-radius: 8px; width: 720px; max-width: 95vw; max-height: 90vh; overflow-y: auto; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.7); }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px; margin-bottom: 16px; }
+  .modal-title { font-size: 16px; font-weight: 700; color: var(--teal); }
+  .modal-close { background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; }
+  .modal-close:hover { color: var(--rust); }
+  .dday-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 12px; }
+  .dday-table th, .dday-table td { padding: 8px; border: 1px solid rgba(255,255,255,0.1); text-align: center; }
+  .dday-table th { background: #1e2622; color: var(--teal); font-weight: 700; }
+  .dday-input { width: 60px; background: #1a221f; border: 1px solid rgba(255,255,255,0.15); color: var(--text); padding: 4px; border-radius: 3px; text-align: center; font-family: 'IBM Plex Mono', monospace; }
+
 
 
   .list-eyebrow {
@@ -645,15 +657,68 @@ function achvStatusOf(pct) {
 }
 // 현장 상세 페이지 "발주" 칸: 주요 공종(CP) 마일스톤 및 리드타임 관리 (KCC ERP 예산 연동)
 const ERP_CATEGORIES = [
-  { code: "E01", name: "01. 공통가설공사", cls: "제작 없음", leadWeeks: { order: 12, startReq: 10, vendorPlan: 8 } },
-  { code: "E02A", name: "02. 건축공사 (토공·골조)", cls: "제작 없음", leadWeeks: { order: 16, startReq: 12, vendorPlan: 10 } },
-  { code: "E02B", name: "02. 건축공사 (창호·석공사·외장)", cls: "제작 있음", leadWeeks: { order: 24, startReq: 20, vendorPlan: 16 } },
-  { code: "E02C", name: "02. 건축공사 (내장·도장·마루)", cls: "마감", leadWeeks: { order: 12, startReq: 10, vendorPlan: 8 } },
-  { code: "E03", name: "03. 토목공사", cls: "제작 없음", leadWeeks: { order: 12, startReq: 10, vendorPlan: 8 } },
-  { code: "E04", name: "04. 설비/승강기공사", cls: "장납기", leadWeeks: { order: 36, startReq: 30, vendorPlan: 24 } },
-  { code: "E05", name: "05. 조경공사", cls: "마감", leadWeeks: { order: 12, startReq: 10, vendorPlan: 8 } },
-  { code: "E06", name: "06. 전기/통신공사", cls: "장납기", leadWeeks: { order: 28, startReq: 22, vendorPlan: 18 } },
+  { code: "E01", name: "01. 공통가설공사", cls: "제작 없음" },
+  { code: "E02A", name: "02. 건축공사 (토공·골조)", cls: "제작 없음" },
+  { code: "E02B", name: "02. 건축공사 (창호·석공사·외장)", cls: "제작 있음" },
+  { code: "E02C", name: "02. 건축공사 (내장·도장·마루)", cls: "마감" },
+  { code: "E03", name: "03. 토목공사", cls: "제작 없음" },
+  { code: "E04", name: "04. 설비/승강기공사", cls: "장납기" },
+  { code: "E05", name: "05. 조경공사", cls: "마감" },
+  { code: "E06", name: "06. 전기/통신공사", cls: "장납기" },
 ];
+
+const ddayMasterStore = [
+  { erp: "E01", name: "01. 공통가설공사", dday: { budgetSubmit: 60, budgetApproved: 45, budgetForecast: 45, order: 30, vendorPlan: 15 } },
+  { erp: "E02A", name: "02. 건축공사 (토공·골조)", dday: { budgetSubmit: 90, budgetApproved: 75, budgetForecast: 75, order: 60, vendorPlan: 30 } },
+  { erp: "E02B", name: "02. 건축공사 (창호·석공사·외장)", dday: { budgetSubmit: 150, budgetApproved: 120, budgetForecast: 120, order: 90, vendorPlan: 60 } },
+  { erp: "E02C", name: "02. 건축공사 (내장·도장·마루)", dday: { budgetSubmit: 60, budgetApproved: 45, budgetForecast: 45, order: 30, vendorPlan: 15 } },
+  { erp: "E03", name: "03. 토목공사", dday: { budgetSubmit: 60, budgetApproved: 45, budgetForecast: 45, order: 30, vendorPlan: 15 } },
+  { erp: "E04", name: "04. 설비/승강기공사", dday: { budgetSubmit: 240, budgetApproved: 210, budgetForecast: 210, order: 180, vendorPlan: 120 } },
+  { erp: "E05", name: "05. 조경공사", dday: { budgetSubmit: 60, budgetApproved: 45, budgetForecast: 45, order: 30, vendorPlan: 15 } },
+  { erp: "E06", name: "06. 전기/통신공사", dday: { budgetSubmit: 180, budgetApproved: 150, budgetForecast: 150, order: 120, vendorPlan: 90 } },
+];
+
+let isDDayModalOpen = false;
+
+function ddaySetupModalHTML() {
+  if (!isDDayModalOpen) return "";
+
+  const rows = ddayMasterStore.map((item, idx) => `
+    <tr>
+      <td style="text-align:left; font-weight:600;">${item.name}</td>
+      <td>D-<input type="number" class="dday-input" data-idx="${idx}" data-field="budgetSubmit" value="${item.dday.budgetSubmit}" />일</td>
+      <td>D-<input type="number" class="dday-input" data-idx="${idx}" data-field="budgetApproved" value="${item.dday.budgetApproved}" />일</td>
+      <td>D-<input type="number" class="dday-input" data-idx="${idx}" data-field="order" value="${item.dday.order}" />일</td>
+      <td>D-<input type="number" class="dday-input" data-idx="${idx}" data-field="vendorPlan" value="${item.dday.vendorPlan}" />일</td>
+    </tr>
+  `).join("");
+
+  return `<div class="modal-overlay" id="dday-modal-overlay">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title">⚙️ 가이드라인 리드타임 (D-Day) 설정</div>
+        <button type="button" class="modal-close" id="btn-close-dday-modal">✕</button>
+      </div>
+      <p style="font-size:12px; color:var(--muted); margin-bottom:12px;">공종별 최초 착수/납품일 기준 몇 일 전(D-Day)에 각 마일스톤 단계가 완료되어야 하는지 설정합니다.</p>
+      <table class="dday-table">
+        <thead>
+          <tr>
+            <th style="width:30%">공종 구분</th>
+            <th>예산상신</th>
+            <th>예산완료</th>
+            <th>발주</th>
+            <th>업체선정</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div style="display:flex; justify-content:flex-end; gap:8px;">
+        <button type="button" class="cp-add-btn" id="btn-add-dday-master-item">+ 새 가이드 공종 추가</button>
+        <button type="button" class="cp-save-btn" id="btn-save-dday-modal">설정 저장 및 반영</button>
+      </div>
+    </div>
+  </div>`;
+}
 
 const BUILDING_GROUPS = ["공통", "101동", "102동", "부대시설"];
 
@@ -696,8 +761,18 @@ function makeCP(itemData) {
     buildingGroup: bld,
     targetStartWeek: startW,
     isCustom,
-    construction: { order: blank48(), startReq: blank48() },
-    procurement: { vendorPlan: blank48() },
+    construction: {
+      budgetSubmit: blank48(),
+      budgetApproved: blank48(),
+      order: blank48(),
+      startReq: blank48(),
+    },
+    support: {
+      budgetForecast: blank48(),
+    },
+    procurement: {
+      vendorPlan: blank48(),
+    },
     history: [],
   };
 }
@@ -708,16 +783,41 @@ function getERPInfo(code) {
 
 function calculateGuidelineWeek(cp, itemKey) {
   if (cp.isCustom) return -1;
-  const erpInfo = getERPInfo(cp.erpCode);
-  const offset = (erpInfo.leadWeeks && erpInfo.leadWeeks[itemKey]) || 8;
-  const w = cp.targetStartWeek - offset;
+  const master = ddayMasterStore.find((m) => m.erp === cp.erpCode) || ddayMasterStore[1];
+  const ddays = master ? master.dday : { budgetSubmit: 60, budgetApproved: 45, order: 30, vendorPlan: 15 };
+  const daysOffset = ddays[itemKey] || 30;
+  const weeksOffset = Math.round(daysOffset / 7);
+  const w = cp.targetStartWeek - weeksOffset;
   return Math.max(0, Math.min(47, w));
+}
+
+function applyGuidelineAutoFill(cp) {
+  if (cp.isCustom) return;
+  const items = [
+    { team: "construction", item: "budgetSubmit" },
+    { team: "construction", item: "budgetApproved" },
+    { team: "construction", item: "order" },
+    { team: "construction", item: "startReq" },
+    { team: "support", item: "budgetForecast" },
+    { team: "procurement", item: "vendorPlan" },
+  ];
+  items.forEach(({ team, item }) => {
+    if (cp[team] && cp[team][item]) {
+      cp[team][item].fill(false);
+      const w = item === "startReq" ? cp.targetStartWeek : calculateGuidelineWeek(cp, item);
+      if (w >= 0 && w < 48) cp[team][item][w] = true;
+    }
+  });
 }
 
 function ensureCPData(divKey, siteId) {
   if (!cpStore[divKey]) cpStore[divKey] = {};
   if (!cpStore[divKey][siteId]) {
-    cpStore[divKey][siteId] = DEFAULT_CP_ITEMS.map((item) => makeCP(item));
+    cpStore[divKey][siteId] = DEFAULT_CP_ITEMS.map((item) => {
+      const cp = makeCP(item);
+      applyGuidelineAutoFill(cp);
+      return cp;
+    });
   }
   return cpStore[divKey][siteId];
 }
@@ -820,7 +920,7 @@ function cpCheckRowHTML(divKey, siteId, cp, team, item, itemLabel, arr) {
   const guideW = calculateGuidelineWeek(cp, item);
   const cells = [];
   for (let w = 0; w < 48; w++) {
-    const checked = !!arr[w];
+    const checked = !!(arr && arr[w]);
     const isGuide = (guideW >= 0 && w === guideW);
     const guideClass = isGuide ? " cp-guide-cell" : "";
     cells.push(`<td class="cp-cell${guideClass}"><button type="button" class="cp-toggle-cell team-${team} ${checked ? "on" : ""}" data-division="${divKey}" data-site="${siteId}" data-cp="${cp.id}" data-team="${team}" data-item="${item}" data-week="${w}" title="${isGuide ? itemLabel + ' 가이드 권장주차' : ''}"></button></td>`);
@@ -867,8 +967,8 @@ function cpCardHTML(divKey, siteId, cp) {
         <span>건축팀 계획 입력 중 (당월 포함 3개월만 입력 가능)</span>
         <select class="cp-meta-select cp-erp-select" data-cp="${cp.id}" data-site="${siteId}" data-field="erpCode" title="KCC ERP 공사예산 항목 연동">${erpOptions}</select>
         <select class="cp-meta-select cp-bld-select" data-cp="${cp.id}" data-site="${siteId}" data-field="buildingGroup" title="동/건물 구분">${bldOptions}</select>
-        <select class="cp-meta-select cp-start-select" data-cp="${cp.id}" data-site="${siteId}" data-field="targetStartWeek">${startWeekOptions}</select>
-        <button type="button" class="cp-save-btn" data-cp="${cp.id}">저장</button>
+        <select class="cp-meta-select cp-start-select" data-cp="${cp.id}" data-site="${siteId}" data-field="targetStartWeek" title="최초 착수/납품 예정 주차">${startWeekOptions}</select>
+        <button type="button" class="cp-save-btn" data-cp="${cp.id}" data-site="${siteId}">가이드 일자 자동 적용</button>
       </div>
     </div>
     ${historyLogs}
@@ -881,8 +981,14 @@ function cpCardHTML(divKey, siteId, cp) {
         </thead>
         <tbody>
           <tr class="cp-team-divider"><td colspan="49">건축팀</td></tr>
+          ${cpCheckRowHTML(divKey, siteId, cp, "construction", "budgetSubmit", "예산상신", cp.construction.budgetSubmit)}
+          ${cpCheckRowHTML(divKey, siteId, cp, "construction", "budgetApproved", "예산완료(요청)", cp.construction.budgetApproved)}
           ${cpCheckRowHTML(divKey, siteId, cp, "construction", "order", "발주", cp.construction.order)}
           ${cpCheckRowHTML(divKey, siteId, cp, "construction", "startReq", "착수(요청)", cp.construction.startReq)}
+          
+          <tr class="cp-team-divider"><td colspan="49">공사지원팀</td></tr>
+          ${cpCheckRowHTML(divKey, siteId, cp, "support", "budgetForecast", "예산완료(예정)", cp.support.budgetForecast)}
+
           <tr class="cp-team-divider"><td colspan="49">외주구매팀</td></tr>
           ${cpCheckRowHTML(divKey, siteId, cp, "procurement", "vendorPlan", "업체선정(예정)", cp.procurement.vendorPlan)}
         </tbody>
@@ -913,7 +1019,10 @@ function cpSectionHTML(divKey, siteId) {
 
     <div class="ap-col-title-row">
       <div class="ap-col-title">주요 공종(CP) 선정 진행 현황</div>
-      <div class="cp-stat-summary">선행계약 가이드 준수율 <strong>${stats.rate}%</strong> (준수 ${stats.compliantCount}건 / 이탈 ${stats.deviatedCount}건)</div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button type="button" class="cp-add-btn" id="btn-open-dday-modal">⚙️ 가이드라인 D-Day 설정</button>
+        <div class="cp-stat-summary">선행계약 가이드 준수율 <strong>${stats.rate}%</strong> (준수 ${stats.compliantCount}건 / 이탈 ${stats.deviatedCount}건)</div>
+      </div>
     </div>
 
     <div class="cp-filter-bar">
@@ -1624,6 +1733,61 @@ document.getElementById("app").addEventListener("click", function (e) {
     render();
     return;
   }
+  const openDDayBtn = e.target.closest("#btn-open-dday-modal");
+  if (openDDayBtn) {
+    isDDayModalOpen = true;
+    render();
+    return;
+  }
+  const closeDDayBtn = e.target.closest("#btn-close-dday-modal");
+  if (closeDDayBtn) {
+    isDDayModalOpen = false;
+    render();
+    return;
+  }
+  const saveDDayBtn = e.target.closest("#btn-save-dday-modal");
+  if (saveDDayBtn) {
+    const inputs = document.querySelectorAll(".dday-input");
+    inputs.forEach((input) => {
+      const idx = Number(input.dataset.idx);
+      const field = input.dataset.field;
+      const val = Number(input.value) || 0;
+      if (ddayMasterStore[idx] && ddayMasterStore[idx].dday) {
+        ddayMasterStore[idx].dday[field] = val;
+      }
+    });
+    Object.keys(cpStore).forEach((divKey) => {
+      Object.keys(cpStore[divKey]).forEach((siteId) => {
+        cpStore[divKey][siteId].forEach((cp) => applyGuidelineAutoFill(cp));
+      });
+    });
+    isDDayModalOpen = false;
+    render();
+    return;
+  }
+  const addDDayItemBtn = e.target.closest("#btn-add-dday-master-item");
+  if (addDDayItemBtn) {
+    const name = prompt("신규 가이드 공종명을 입력하세요 (예: 07. 조명/특수장비):");
+    if (name) {
+      const code = `E${Date.now()}`;
+      ddayMasterStore.push({ erp: code, name, dday: { budgetSubmit: 60, budgetApproved: 45, budgetForecast: 45, order: 30, vendorPlan: 15 } });
+      ERP_CATEGORIES.push({ code, name, cls: "자율" });
+      render();
+    }
+    return;
+  }
+  const cpAutoApplyBtn = e.target.closest(".cp-save-btn");
+  if (cpAutoApplyBtn) {
+    const siteId = cpAutoApplyBtn.dataset.site;
+    const cps = ensureCPData(state.activeDivision, siteId);
+    const cp = cps.find((c) => c.id === cpAutoApplyBtn.dataset.cp);
+    if (cp) {
+      applyGuidelineAutoFill(cp);
+      persistCPData(state.activeDivision);
+      render();
+    }
+    return;
+  }
   const addCustomBtn = e.target.closest("#btn-add-custom-cp");
   if (addCustomBtn) {
     const cps = ensureCPData(addCustomBtn.dataset.division, addCustomBtn.dataset.site);
@@ -1632,32 +1796,12 @@ document.getElementById("app").addEventListener("click", function (e) {
     render();
     return;
   }
-  const manageMasterBtn = e.target.closest("#btn-manage-master-guideline");
-  if (manageMasterBtn) {
-    const newName = prompt("추가/관리할 가이드라인 공정 종류명을 입력하세요 (예: 특수 창호/장납기 공정):");
-    if (newName) {
-      alert(`[${newName}] 가이드라인 공정이 마스터 등록 설정되었습니다.`);
-    }
-    return;
-  }
-  const masterCell = e.target.closest(".cp-master-cell");
-  if (masterCell) {
-    const team = masterCell.dataset.team;
-    const item = masterCell.dataset.item;
-    const w = Number(masterCell.dataset.week);
-    if (masterGuidelineStore[team] && masterGuidelineStore[team][item]) {
-      const arr = masterGuidelineStore[team][item];
-      const wasOn = arr[w];
-      arr.fill(false);
-      if (!wasOn) arr[w] = true;
-    }
-    render();
-    return;
-  }
   const cpAddBtn = e.target.closest(".cp-add-btn");
   if (cpAddBtn) {
     const cps = ensureCPData(cpAddBtn.dataset.division, cpAddBtn.dataset.site);
-    cps.push(makeCP({ name: "신규 표준 공종", erp: "E02A", bld: "공통", startW: 24, isCustom: false }));
+    const newCP = makeCP({ name: "신규 표준 공종", erp: "E02A", bld: "공통", startW: 24, isCustom: false });
+    applyGuidelineAutoFill(newCP);
+    cps.push(newCP);
     persistCPData(cpAddBtn.dataset.division);
     render();
     return;
@@ -1739,8 +1883,14 @@ document.getElementById("app").addEventListener("change", function (e) {
     const cp = cps.find((c) => c.id === metaSelect.dataset.cp);
     if (cp) {
       const field = metaSelect.dataset.field;
-      if (field === "targetStartWeek") cp.targetStartWeek = Number(metaSelect.value);
-      else if (field === "erpCode") cp.erpCode = metaSelect.value;
+      if (field === "targetStartWeek") {
+        cp.targetStartWeek = Number(metaSelect.value);
+        applyGuidelineAutoFill(cp);
+      }
+      else if (field === "erpCode") {
+        cp.erpCode = metaSelect.value;
+        applyGuidelineAutoFill(cp);
+      }
       else if (field === "buildingGroup") cp.buildingGroup = metaSelect.value;
       persistCPData(state.activeDivision);
       render();
