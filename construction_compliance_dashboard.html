@@ -966,6 +966,15 @@ function flowTrackHTML(trackLabel, steps, actionStepHTML) {
     <div class="flow-diagram">${stepsHtml}${actionStepHTML}</div>
   </div>`;
 }
+function countDelayedCPs(divKey, sites) {
+  let count = 0;
+  if (!sites) return 0;
+  sites.forEach((s) => {
+    const cps = ensureCPData(divKey, s.id);
+    cps.forEach((cp) => { if (cpDelayInfo(cp).state === "bad") count++; });
+  });
+  return count;
+}
 function trackADelayActionHTML(divKey, sites) {
   const count = countDelayedCPs(divKey, sites);
   const cls = count > 0 ? "bad" : "ok";
